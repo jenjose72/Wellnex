@@ -1,20 +1,27 @@
+
 import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { UserProfile } from '@/components/UserProfile';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomeScreen() {
-  const colorScheme = useColorScheme();
+  const { user } = useAuth();
+  
+  // Extract username from email (before the @)
+  const username = user?.email ? user.email.split('@')[0] : '';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Welcome to Wellnex</Text>
+          <Text style={styles.headerTitle}>
+            Welcome{username ? `, ${username}` : ' to Wellnex'}
+          </Text>
           <Text style={styles.headerSubtitle}>Your health companion</Text>
         </View>
+
+        <UserProfile />
 
         <View style={styles.cardContainer}>
           <Text style={styles.sectionTitle}>Daily Stats</Text>
