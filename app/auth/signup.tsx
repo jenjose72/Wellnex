@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function SignupScreen() {
-  const [email, setEmail] = useState('jefinfrancis10@gmail.com');
+  const [email, setEmail] = useState('tempemail@gmail.com');
   const [password, setPassword] = useState('qwerty');
   const [confirmPassword, setConfirmPassword] = useState('qwerty');
   const [name, setName] = useState('ss');
