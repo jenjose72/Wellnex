@@ -1,7 +1,6 @@
 {
   "expo": {
     "name": "Wellnex",
-
     "slug": "Wellnex",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,14 +9,24 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Wellnex needs access to your location to find nearby emergency services like hospitals, police stations, and pharmacies.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Wellnex needs access to your location to find nearby emergency services like hospitals, police stations, and pharmacies."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -33,6 +42,15 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Wellnex needs access to your location to find nearby emergency services like hospitals, police stations, and pharmacies.",
+          "locationWhenInUsePermission": "Wellnex needs access to your location to find nearby emergency services like hospitals, police stations, and pharmacies.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
         }
       ]
     ],
