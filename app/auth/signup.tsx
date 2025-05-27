@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function SignupScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState('jefinfrancis10@gmail.com');
+  const [password, setPassword] = useState('qwerty');
+  const [confirmPassword, setConfirmPassword] = useState('qwerty');
+  const [name, setName] = useState('ss');
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const { signUp, loading, error } = useAuth();
 
@@ -25,80 +26,113 @@ export default function SignupScreen() {
     return true;
   };
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSignup = () => {
-    if (validatePassword()) {
-      signUp(email, password);
+    // Validate all fields
+    if (!name.trim()) {
+      Alert.alert('Error', 'Please enter your name');
+      return;
     }
+
+    if (!validateEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    if (!validatePassword()) {
+      return;
+    }
+
+    // All validations passed
+    signUp(email, password, name);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <IconSymbol size={48} name="heart.fill" color="#007bff" />
-        <Text style={styles.headerTitle}>Wellnex</Text>
-        <Text style={styles.headerSubtitle}>Create your account</Text>
-      </View>
-
-      {(error || passwordError) && (
-        <Text style={styles.errorText}>{error || passwordError}</Text>
-      )}
-
-      <View style={styles.formContainer}>
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-          />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.headerContainer}>
+          <IconSymbol size={48} name="heart.fill" color="#007bff" />
+          <Text style={styles.headerTitle}>Wellnex</Text>
+          <Text style={styles.headerSubtitle}>Create your account</Text>
         </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Create a password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-        </View>
+        {(error || passwordError) && (
+          <Text style={styles.errorText}>{error || passwordError}</Text>
+        )}
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Confirm Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm your password"
-            secureTextEntry
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-          />
-        </View>
+        <View style={styles.formContainer}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Full Name <Text style={styles.required}>*</Text></Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your full name"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+          </View>
 
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={handleSignup}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Create Account</Text>
-          )}
-        </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email <Text style={styles.required}>*</Text></Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
 
-        <View style={styles.loginContainer}>
-          <Text style={styles.loginText}>Already have an account?</Text>
-          <Link href="/auth/login" asChild>
-            <TouchableOpacity>
-              <Text style={styles.loginLink}>Sign In</Text>
-            </TouchableOpacity>
-          </Link>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Password <Text style={styles.required}>*</Text></Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Create a password"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+            <Text style={styles.helperText}>Password must be at least 6 characters</Text>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Confirm Password <Text style={styles.required}>*</Text></Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm your password"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.button, (!email || !password || !name) && styles.buttonDisabled]} 
+            onPress={handleSignup}
+            disabled={loading || !email || !password || !name}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Create Account</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.loginContainer}>
+            <Text style={styles.loginText}>Already have an account?</Text>
+            <Link href="/auth/login" asChild>
+              <TouchableOpacity>
+                <Text style={styles.loginLink}>Sign In</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -134,6 +168,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginBottom: 30,
   },
   inputContainer: {
     marginBottom: 20,
@@ -144,12 +179,23 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
   },
+  required: {
+    color: '#dc3545',
+  },
   input: {
     backgroundColor: '#f1f3f5',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 10,
     fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e6e6e6',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginTop: 4,
+    marginLeft: 4,
   },
   button: {
     backgroundColor: '#007bff',
@@ -157,6 +203,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 16,
+  },
+  buttonDisabled: {
+    backgroundColor: '#b3d9ff',
   },
   buttonText: {
     color: '#fff',
