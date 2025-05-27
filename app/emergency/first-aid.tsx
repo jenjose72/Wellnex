@@ -1,0 +1,464 @@
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { supabase } from '@/lib/supabase';
+
+type FirstAidItem = {
+  id: string;
+  title: string;
+  category: string;
+  steps: string[];
+};
+
+export default function FirstAidScreen() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [firstAidData, setFirstAidData] = useState<FirstAidItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    fetchFirstAidData();
+    
+    // Simulate checking if data is downloaded for offline use
+    setTimeout(() => {
+      setIsDownloaded(true);
+    }, 1000);
+  }, []);
+
+  const fetchFirstAidData = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('first_aid_guide')
+        .select('*')
+        .order('title', { ascending: true });
+      
+      if (error) throw error;
+
+      // Parse steps from string to array
+      const parsedData = data.map(item => ({
+        ...item,
+        steps: JSON.parse(item.steps)
+      }));
+      
+      setFirstAidData(parsedData);
+    } catch (error) {
+      console.error('Error fetching first aid data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedItem(expandedItem === id ? null : id);
+  };
+  
+  const getCategoryColor = (category: string) => {
+    switch(category) {
+      case 'critical': return '#ff3b30';
+      case 'injuries': return '#ff9500';
+      default: return '#34c759';
+    }
+  };
+
+  const filteredData = firstAidData
+    .filter(item => 
+      (selectedCategory === 'all' || item.category === selectedCategory) &&
+      (item.title.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <LinearGradient
+        colors={['#ffffff', '#f5f9ff']}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <IconSymbol size={24} name="chevron.left" color="#0084ff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>First Aid Library</Text>
+          <View style={{ width: 40 }} />
+        </View>
+      
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <IconSymbol size={18} name="magnifyingglass" color="#0084ff" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search first aid topics"
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+            />
+            {searchTerm.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchTerm('')}>
+                <IconSymbol size={18} name="xmark.circle.fill" color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      
+        <View style={styles.categoryFilterContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryFilterScroll}>
+            <TouchableOpacity 
+              style={[styles.categoryButton, selectedCategory === 'all' && styles.categoryActive]}
+              onPress={() => setSelectedCategory('all')}
+            >
+              <Text style={[styles.categoryText, selectedCategory === 'all' && styles.categoryTextActive]}>All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.categoryButton, selectedCategory === 'critical' && styles.categoryActive]}
+              onPress={() => setSelectedCategory('critical')}
+            >
+              <Text style={[styles.categoryText, selectedCategory === 'critical' && styles.categoryTextActive]}>Critical</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.categoryButton, selectedCategory === 'injuries' && styles.categoryActive]}
+              onPress={() => setSelectedCategory('injuries')}
+            >
+              <Text style={[styles.categoryText, selectedCategory === 'injuries' && styles.categoryTextActive]}>Injuries</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.categoryButton, selectedCategory === 'medical' && styles.categoryActive]}
+              onPress={() => setSelectedCategory('medical')}
+            >
+              <Text style={[styles.categoryText, selectedCategory === 'medical' && styles.categoryTextActive]}>Medical</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </LinearGradient>
+      
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0084ff" />
+            <Text style={styles.loadingText}>Loading first aid procedures...</Text>
+          </View>
+        ) : filteredData.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <IconSymbol size={50} name="cross.case.fill" color="#c5d5e6" />
+            <Text style={styles.emptyText}>No procedures found</Text>
+            <Text style={styles.emptySubtext}>
+              {searchTerm 
+                ? `No results for "${searchTerm}". Try a different search term.`
+                : `No ${selectedCategory !== 'all' ? selectedCategory : ''} procedures available.`}
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.resultsText}>{filteredData.length} first aid procedures available</Text>
+            
+            {filteredData.map(item => (
+              <TouchableOpacity 
+                key={item.id} 
+                style={[
+                  styles.firstAidCard, 
+                  expandedItem === item.id && styles.expandedCard,
+                  { borderLeftColor: getCategoryColor(item.category) }
+                ]}
+                onPress={() => toggleExpand(item.id)}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={styles.titleContainer}>
+                    <Text style={styles.cardTitle}>{item.title}</Text>
+                    <View style={[
+                      styles.categoryBadge,
+                      { backgroundColor: `${getCategoryColor(item.category)}15` }
+                    ]}>
+                      <Text style={[styles.categoryBadgeText, { color: getCategoryColor(item.category) }]}>
+                        {item.category}
+                      </Text>
+                    </View>
+                  </View>
+                  <IconSymbol 
+                    size={20} 
+                    name={expandedItem === item.id ? "chevron.up" : "chevron.down"} 
+                    color="#0084ff" 
+                  />
+                </View>
+                
+                {expandedItem === item.id && (
+                  <View style={styles.contentContainer}>
+                    {item.steps.map((step, index) => (
+                      <View key={index} style={styles.stepContainer}>
+                        <LinearGradient
+                          colors={['#0084ff', '#1e96ff']}
+                          style={styles.stepNumber}
+                        >
+                          <Text style={styles.stepNumberText}>{index + 1}</Text>
+                        </LinearGradient>
+                        <Text style={styles.stepText}>{step}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
+      </ScrollView>
+      
+      <BlurView intensity={80} tint="light" style={styles.offlineNotice}>
+        <IconSymbol 
+          size={16} 
+          name={isDownloaded ? "checkmark.circle.fill" : "icloud.and.arrow.down.fill"} 
+          color="#0084ff" 
+        />
+        <Text style={styles.offlineText}>
+          {isDownloaded 
+            ? "All first aid information available offline"
+            : "Downloading first aid information for offline use..."}
+        </Text>
+      </BlurView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  headerGradient: {
+    paddingBottom: 16,
+    borderBottomLeftRadius: 16, 
+    borderBottomRightRadius: 16,
+    shadowColor: '#0084ff',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    shadowColor: '#0084ff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#222',
+    letterSpacing: -0.5,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#edf2f7',
+    shadowColor: '#0084ff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+    height: 50,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    fontSize: 16,
+    color: '#222',
+  },
+  categoryFilterContainer: {
+    paddingLeft: 16,
+    marginTop: 8,
+  },
+  categoryFilterScroll: {
+    paddingRight: 16,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    backgroundColor: '#ffffff',
+    shadowColor: '#0084ff',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  categoryActive: {
+    backgroundColor: '#0084ff',
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  categoryTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+    minHeight: '100%',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 20,
+  },
+  resultsText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    fontWeight: '500',
+  },
+  firstAidCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#0084ff',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderColor: '#f5f5f5',
+  },
+  expandedCard: {
+    borderColor: '#0084ff',
+    shadowColor: '#0084ff',
+    shadowOpacity: 0.15,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  titleContainer: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#222',
+    marginBottom: 6,
+    letterSpacing: -0.3,
+  },
+  categoryBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  categoryBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  contentContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#edf2f7',
+  },
+  stepContainer: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    shadowColor: '#0084ff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  stepNumberText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  stepText: {
+    fontSize: 14,
+    color: '#444',
+    flex: 1,
+    lineHeight: 20,
+    letterSpacing: 0.1,
+  },
+  offlineNotice: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  offlineText: {
+    marginLeft: 8,
+    color: '#0084ff',
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
+});
