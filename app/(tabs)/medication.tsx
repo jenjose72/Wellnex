@@ -16,8 +16,10 @@ import { supabase } from '@/lib/supabase';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, parse } from 'date-fns';
 import * as Notifications from 'expo-notifications';
-
+import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 export default function MedicationScreen() {
+  const navigation = useNavigation();
   const [medications, setMedications] = useState([]);
   const [medicalHistory, setMedicalHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -277,77 +279,98 @@ export default function MedicationScreen() {
 
   const getTypeColor = (type) => {
     const colors = {
-      'Diagnosis': '#dc3545',
-      'Surgery': '#fd7e14',
-      'Allergy': '#ffc107',
-      'Vaccination': '#28a745',
-      'Lab Result': '#17a2b8',
-      'Treatment': '#6f42c1',
-      'Emergency': '#e83e8c',
-      'Other': '#6c757d'
+      'Diagnosis': '#1c7ed6',
+      'Surgery': '#4dabf7', 
+      'Allergy': '#74c0fc',
+      'Vaccination': '#339af0',
+      'Lab Result': '#228be6',
+      'Treatment': '#1971c2',
+      'Emergency': '#1864ab',
+      'Other': '#adb5bd'
     };
-    return colors[type] || '#6c757d';
+    return colors[type] || '#adb5bd';
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <LinearGradient
+        colors={['#e7f5ff', '#f8f9fa']}
+        style={styles.headerGradient}
+      >
         <View style={styles.headerContainer}>
           <Text style={styles.headerTitle}>Health Management</Text>
-          <Text style={styles.headerSubtitle}>
-            Track medications and manage medical history
-          </Text>
+          <Text style={styles.headerSubtitle}>Track medications and medical history</Text>
         </View>
+      </LinearGradient>
 
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Medications Section */}
-        <View style={styles.cardContainer}>
+        <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Today's Medications</Text>
+            <View style={styles.sectionTitleContainer}>
+              <IconSymbol name="pills" size={20} color="#1971c2" />
+              <Text style={styles.sectionTitle}>Today's Medications</Text>
+            </View>
             <TouchableOpacity
               style={styles.addButton}
               onPress={() => setModalVisible(true)}
             >
-              <IconSymbol size={20} name="plus" color="#fff" />
+              <IconSymbol size={16} name="plus" color="#fff" />
+              <Text style={styles.addButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
 
-          {medications.map((med) => (
-            <View key={med.id} style={styles.medicationCard}>
-              <View style={styles.medicationTime}>
-                <Text style={styles.timeText}>{med.time}</Text>
-              </View>
-              <View style={styles.medicationDetails}>
-                <Text style={styles.medicationName}>{med.medicine_name}</Text>
-                <Text style={styles.medicationDosage}>{med.dosage}</Text>
-                {med.notes ? (
-                  <Text style={styles.notesText}>
-                    Notes: {med.notes}
-                  </Text>
-                ) : null}
-              </View>
-              <TouchableOpacity style={styles.checkButton}>
-                <IconSymbol size={20} name="checkmark" color="#fff" />
-              </TouchableOpacity>
+          {medications.length === 0 ? (
+            <View style={styles.emptyState}>
+              <IconSymbol name="pill" size={36} color="#74c0fc" />
+              <Text style={styles.emptyStateText}>No medications scheduled</Text>
+              <Text style={styles.emptyStateSubtext}>Add your medications to get reminders</Text>
             </View>
-          ))}
+          ) : (
+            medications.map((med) => (
+              <View key={med.id} style={styles.medicationCard}>
+                <View style={styles.medicationTime}>
+                  <IconSymbol name="clock" size={18} color="#1971c2" />
+                  <Text style={styles.timeText}>{med.time}</Text>
+                </View>
+                <View style={styles.medicationDetails}>
+                  <Text style={styles.medicationName}>{med.medicine_name}</Text>
+                  <Text style={styles.medicationDosage}>{med.dosage}</Text>
+                  {med.notes ? (
+                    <Text style={styles.notesText}>
+                      Notes: {med.notes}
+                    </Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity style={styles.checkButton}>
+                  <IconSymbol size={16} name="checkmark" color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Medical History Section */}
-        <View style={styles.cardContainer}>
+        <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Medical History</Text>
+            <View style={styles.sectionTitleContainer}>
+              <IconSymbol name="doc.text" size={20} color="#1971c2" />
+              <Text style={styles.sectionTitle}>Medical History</Text>
+            </View>
             <TouchableOpacity
               style={styles.addButton}
               onPress={() => setHistoryModalVisible(true)}
             >
-              <IconSymbol size={20} name="plus" color="#fff" />
+              <IconSymbol size={16} name="plus" color="#fff" />
+              <Text style={styles.addButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
 
           {medicalHistory.length === 0 ? (
             <View style={styles.emptyState}>
+              <IconSymbol name="doc.text" size={36} color="#74c0fc" />
               <Text style={styles.emptyStateText}>No medical history records yet</Text>
-              <Text style={styles.emptyStateSubtext}>Tap + to add your first record</Text>
+              <Text style={styles.emptyStateSubtext}>Add your medical history for future reference</Text>
             </View>
           ) : (
             medicalHistory.map((history) => (
@@ -368,7 +391,7 @@ export default function MedicationScreen() {
                     style={styles.deleteButton}
                     onPress={() => deleteMedicalHistory(history.id)}
                   >
-                    <IconSymbol size={16} name="trash" color="#dc3545" />
+                    <IconSymbol size={16} name="trash" color="#339af0" />
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.historyTitle}>{history.title}</Text>
@@ -383,8 +406,13 @@ export default function MedicationScreen() {
         {/* Add Medication Modal */}
         <Modal visible={modalVisible} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Add Medication</Text>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add Medication</Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <IconSymbol name="xmark" size={20} color="#adb5bd" />
+                </TouchableOpacity>
+              </View>
 
               <TextInput
                 placeholder="Medicine Name"
@@ -393,6 +421,7 @@ export default function MedicationScreen() {
                   setNewMed({ ...newMed, medicine_name: text })
                 }
                 style={styles.input}
+                placeholderTextColor="#74c0fc"
               />
               <TextInput
                 placeholder="Dosage (e.g., 500mg • 1 Tablet)"
@@ -401,6 +430,7 @@ export default function MedicationScreen() {
                   setNewMed({ ...newMed, dosage: text })
                 }
                 style={styles.input}
+                placeholderTextColor="#74c0fc"
               />
               <TextInput
                 placeholder="Repeat Pattern (e.g., daily)"
@@ -409,6 +439,7 @@ export default function MedicationScreen() {
                   setNewMed({ ...newMed, repeat_pattern: text })
                 }
                 style={styles.input}
+                placeholderTextColor="#74c0fc"
               />
               <TextInput
                 placeholder="Notes (optional)"
@@ -417,6 +448,7 @@ export default function MedicationScreen() {
                   setNewMed({ ...newMed, notes: text })
                 }
                 style={styles.input}
+                placeholderTextColor="#74c0fc"
               />
 
               <TouchableOpacity
@@ -424,7 +456,7 @@ export default function MedicationScreen() {
                 onPress={() => setShowTimePicker(true)}
               >
                 <View style={styles.dateTimeWrapper}>
-                  <IconSymbol name="time" size={20} color="#007bff" />
+                  <IconSymbol name="time" size={20} color="#1971c2" />
                   <Text style={styles.dateTimeText}>
                     {newMed.time || 'Select Time'}
                   </Text>
@@ -445,7 +477,7 @@ export default function MedicationScreen() {
                 onPress={() => setShowStartDatePicker(true)}
               >
                 <View style={styles.dateTimeWrapper}>
-                  <IconSymbol name="calendar" size={20} color="#007bff" />
+                  <IconSymbol name="calendar" size={20} color="#1971c2" />
                   <Text style={styles.dateTimeText}>
                     {newMed.start_date || 'Select Start Date'}
                   </Text>
@@ -465,7 +497,7 @@ export default function MedicationScreen() {
                 onPress={() => setShowEndDatePicker(true)}
               >
                 <View style={styles.dateTimeWrapper}>
-                  <IconSymbol name="calendar" size={20} color="#007bff" />
+                  <IconSymbol name="calendar" size={20} color="#1971c2" />
                   <Text style={styles.dateTimeText}>
                     {newMed.end_date || 'Select End Date'}
                   </Text>
@@ -485,13 +517,13 @@ export default function MedicationScreen() {
                   onPress={() => setModalVisible(false)}
                   style={styles.cancelButton}
                 >
-                  <Text style={styles.cancelText}>Cancel</Text>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={addMedication}
                   style={styles.saveButton}
                 >
-                  <Text style={styles.saveText}>Save</Text>
+                  <Text style={styles.saveButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -501,11 +533,16 @@ export default function MedicationScreen() {
         {/* Add Medical History Modal */}
         <Modal visible={historyModalVisible} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Add Medical History</Text>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add Medical History</Text>
+                <TouchableOpacity onPress={() => setHistoryModalVisible(false)}>
+                  <IconSymbol name="xmark" size={20} color="#adb5bd" />
+                </TouchableOpacity>
+              </View>
 
-              <ScrollView style={styles.typeSelector}>
-                <Text style={styles.typeSelectorLabel}>Type *</Text>
+              <Text style={styles.inputLabel}>Type *</Text>
+              <ScrollView style={styles.typeSelector} horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.typeGrid}>
                   {historyTypes.map((type) => (
                     <TouchableOpacity
@@ -527,17 +564,20 @@ export default function MedicationScreen() {
                 </View>
               </ScrollView>
 
+              <Text style={styles.inputLabel}>Title *</Text>
               <TextInput
-                placeholder="Title *"
+                placeholder="Enter title"
                 value={newHistory.title}
                 onChangeText={(text) =>
                   setNewHistory({ ...newHistory, title: text })
                 }
                 style={styles.input}
+                placeholderTextColor="#74c0fc"
               />
 
+              <Text style={styles.inputLabel}>Description (optional)</Text>
               <TextInput
-                placeholder="Description (optional)"
+                placeholder="Enter description"
                 value={newHistory.description}
                 onChangeText={(text) =>
                   setNewHistory({ ...newHistory, description: text })
@@ -545,16 +585,18 @@ export default function MedicationScreen() {
                 style={[styles.input, styles.textArea]}
                 multiline
                 numberOfLines={3}
+                placeholderTextColor="#74c0fc"
               />
 
+              <Text style={styles.inputLabel}>Date *</Text>
               <TouchableOpacity
                 style={styles.dateTimeButton}
                 onPress={() => setShowHistoryDatePicker(true)}
               >
                 <View style={styles.dateTimeWrapper}>
-                  <IconSymbol name="calendar" size={20} color="#007bff" />
+                  <IconSymbol name="calendar" size={20} color="#1971c2" />
                   <Text style={styles.dateTimeText}>
-                    {newHistory.date_recorded || 'Select Date *'}
+                    {newHistory.date_recorded || 'Select Date'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -572,18 +614,69 @@ export default function MedicationScreen() {
                   onPress={() => setHistoryModalVisible(false)}
                   style={styles.cancelButton}
                 >
-                  <Text style={styles.cancelText}>Cancel</Text>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={addMedicalHistory}
                   style={styles.saveButton}
                 >
-                  <Text style={styles.saveText}>Save</Text>
+                  <Text style={styles.saveButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
+        {/* Medicine Effects */}
+      
+        <TouchableOpacity
+            style={[styles.card, styles.medicineCard]}
+            onPress={() => navigation.navigate('medicine/medicineSideEffects')}
+          >
+            <LinearGradient
+              colors={['#228be6', '#1971c2']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.medicineGradient}
+            >
+              <View style={styles.medicineContent}>
+                  <View>
+                  <Text style={styles.medicineTitle}>Learn About Drug Interactions</Text>
+                  <Text style={styles.medicineDescription}>
+                    Understand potential medication interactions and side effects.
+                  </Text>
+                  </View>
+                <View style={styles.medicineIconContainer}>
+                  <IconSymbol name="bubble.right.fill" size={28} color="#ffffff" />
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
+        {/* Medicine Effects */}
+        <TouchableOpacity
+            style={[styles.card, styles.medicineCard]}
+            onPress={() => navigation.navigate('medicine/medicineConflicts')}
+          >
+            <LinearGradient
+              colors={['#93c9f5', '#4faeff']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.medicineGradient}
+            >
+                <View style={styles.medicineContent}>
+                  <View>
+                  <Text style={styles.medicineTitle}>Verify Medication Compatibility</Text>
+                  <Text style={styles.medicineDescription}>
+                  Identify potential conflicts between your prescribed medications.
+                  </Text>
+                  </View>
+                <View style={styles.medicineIconContainer}>
+                  <IconSymbol name="bubble.right.fill" size={28} color="#ffffff" />
+                </View>
+                </View>
+            </LinearGradient>
+          </TouchableOpacity>
+     
       </ScrollView>
     </SafeAreaView>
   );
@@ -592,71 +685,102 @@ export default function MedicationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
+  },
+  headerGradient: {
+    paddingBottom: 20,
+  },
+  headerContainer: {
+    paddingTop: 16,
+    paddingHorizontal: 20,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1c7ed6',
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: '#1971c2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#e7f5ff',
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#4dabf7',
+    marginTop: 4,
   },
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 80,
   },
-  headerContainer: {
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 4,
-  },
-  cardContainer: {
+  sectionContainer: {
     marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#1971c2',
+    marginLeft: 8,
   },
   addButton: {
-    backgroundColor: '#007bff',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    backgroundColor: '#339af0',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    marginLeft: 6,
   },
   medicationCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#1971c2',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e7f5ff',
   },
   medicationTime: {
-    backgroundColor: '#f0f0f0',
-    padding: 8,
-    borderRadius: 8,
-    marginRight: 12,
+    backgroundColor: '#e7f5ff',
+    padding: 12,
+    borderRadius: 12,
+    marginRight: 16,
+    alignItems: 'center',
+    minWidth: 80,
   },
   timeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#555',
+    color: '#1971c2',
+    marginTop: 4,
   },
   medicationDetails: {
     flex: 1,
@@ -664,69 +788,79 @@ const styles = StyleSheet.create({
   medicationName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#1971c2',
   },
   medicationDosage: {
     fontSize: 14,
-    color: '#666',
+    color: '#74c0fc',
     marginTop: 4,
   },
   notesText: {
-    color: '#777',
-    fontSize: 12,
+    color: '#adb5bd',
+    fontSize: 13,
     marginTop: 4,
   },
   checkButton: {
-    backgroundColor: '#28a745',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    backgroundColor: '#339af0',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#1971c2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
   },
   emptyState: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 32,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#1971c2',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e7f5ff',
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#666',
+    color: '#1971c2',
     fontWeight: '500',
+    marginTop: 12,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#999',
+    color: '#74c0fc',
     marginTop: 4,
   },
   historyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: '#1971c2',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e7f5ff',
   },
   historyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   historyTypeContainer: {
     flex: 1,
   },
   historyTypeBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     alignSelf: 'flex-start',
@@ -739,116 +873,174 @@ const styles = StyleSheet.create({
   },
   historyDate: {
     fontSize: 12,
-    color: '#666',
+    color: '#74c0fc',
+    fontWeight: '500',
   },
   deleteButton: {
-    padding: 4,
+    padding: 8,
   },
   historyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    color: '#1971c2',
+    marginBottom: 8,
   },
   historyDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#495057',
     lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(25, 113, 194, 0.3)',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
     padding: 16,
   },
-  modalContainer: {
+  modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
+    width: '90%',
     maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontWeight: '600',
+    color: '#1971c2',
   },
   input: {
-    backgroundColor: '#f0f0f0',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+    backgroundColor: '#e7f5ff',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+    fontSize: 16,
+    color: '#1971c2',
   },
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
-  typeSelector: {
-    maxHeight: 120,
-    marginBottom: 12,
+  inputLabel: {
+    fontSize: 14,
+    color: '#74c0fc',
+    marginBottom: 6,
+    fontWeight: '500',
   },
-  typeSelectorLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+  typeSelector: {
+    marginBottom: 16,
   },
   typeGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    paddingVertical: 8,
   },
   typeOption: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginBottom: 8,
+    backgroundColor: '#e7f5ff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 10,
   },
   typeOptionSelected: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#339af0',
   },
   typeOptionText: {
     fontSize: 14,
-    color: '#333',
+    color: '#1971c2',
+    fontWeight: '500',
   },
   typeOptionTextSelected: {
-    color: '#fff',
+    color: '#ffffff',
   },
   dateTimeButton: {
-    backgroundColor: '#f0f0f0',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+    backgroundColor: '#e7f5ff',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   dateTimeWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   dateTimeText: {
-    marginLeft: 8,
-    color: '#333',
+    marginLeft: 12,
+    fontSize: 16,
+    color: '#1971c2',
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 16,
+    justifyContent: 'space-between',
+    marginTop: 8,
   },
   cancelButton: {
-    marginRight: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e7f5ff',
   },
-  cancelText: {
-    color: '#777',
-    fontSize: 16,
-  },
-  saveButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  saveText: {
-    color: '#fff',
+  cancelButtonText: {
+    color: '#74c0fc',
     fontWeight: '600',
     fontSize: 16,
   },
-});
+  saveButton: {
+    backgroundColor: '#339af0',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    shadowColor: '#1971c2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  medicineCard: {
+    padding: 0,
+    overflow: 'hidden',
+  },
+  medicineGradient: {
+    borderRadius: 16,
+  },
+  medicineContent: {
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  medicineTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  medicineDescription: {
+    fontSize: 14,
+    color: '#e7f5ff',
+    maxWidth: '90%',
+  },
+  medicineIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+}); 

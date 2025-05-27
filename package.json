@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
+    "@google/generative-ai": "^0.24.1",
     "@react-native-community/datetimepicker": "^8.4.1",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
@@ -26,7 +27,10 @@
     "expo-font": "~13.3.1",
     "expo-haptics": "~14.1.4",
     "expo-image": "~2.1.7",
+    "expo-linear-gradient": "^14.1.4",
     "expo-linking": "~7.1.5",
+    "expo-location": "^18.1.5",
+    "expo-notifications": "~0.31.2",
     "expo-router": "~5.0.6",
     "expo-secure-store": "^14.2.3",
     "expo-splash-screen": "~0.30.8",
@@ -34,9 +38,12 @@
     "expo-symbols": "~0.4.4",
     "expo-system-ui": "~5.0.7",
     "expo-web-browser": "~14.1.6",
+    "lodash": "^4.17.21",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.2",
+    "react-native-chart-kit": "^6.12.0",
+    "react-native-dotenv": "^3.4.11",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-polyfill-globals": "^3.1.0",
     "react-native-reanimated": "~3.17.4",
@@ -48,8 +55,7 @@
     "secure-store": "^0.0.1",
     "stream-browserify": "^3.0.0",
     "text-encoding": "^0.7.0",
-    "web-streams-polyfill": "^4.1.0",
-    "expo-notifications": "~0.31.2"
+    "web-streams-polyfill": "^4.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
