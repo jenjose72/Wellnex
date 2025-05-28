@@ -5,9 +5,12 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import {  useRouter } from 'expo-router';
 
 export default function FitnessScreen() {
   const navigation = useNavigation();
+  const router=useRouter()
   const [userData, setUserData] = useState({
     height: 0,
     weight: 0,
@@ -214,7 +217,7 @@ export default function FitnessScreen() {
         {/* Chatbot Redirect Section */}
         <TouchableOpacity
           style={[styles.card, styles.chatbotCard]}
-          onPress={() => navigation.navigate('fitness/chatbot')}
+          onPress={() => router.push('fitness/chatbot')}
         >
           <LinearGradient
             colors={['#228be6', '#1971c2']}
@@ -230,7 +233,7 @@ export default function FitnessScreen() {
                 </Text>
               </View>
               <View style={styles.chatbotIconContainer}>
-                <IconSymbol name="bubble.right.fill" size={28} color="#ffffff" />
+               <Ionicons size={28} name="fitness-sharp" color='#FFFFFF' />
               </View>
             </View>
           </LinearGradient>

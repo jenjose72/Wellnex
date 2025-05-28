@@ -17,6 +17,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Picker } from '@react-native-picker/picker';
+import { Entypo } from '@expo/vector-icons';
 
 type UserProfile = {
   id: string;
@@ -224,7 +225,7 @@ export default function EditProfile() {
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <IconSymbol size={24} name="chevron.left" color="#333" />
+            <Entypo size={24} name="chevron-left" color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
           <View style={{ width: 40 }} />
