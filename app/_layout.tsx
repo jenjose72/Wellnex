@@ -25,6 +25,7 @@ export default function RootLayout() {
           <Stack.Screen name="fitness" options={{ headerShown: false }} /> 
           <Stack.Screen name="mental" options={{ headerShown: false }} /> 
           <Stack.Screen name="profile/edit" options={{ headerShown: false }} />   
+          <Stack.Screen name="mdeicine/medicineSideEffects" options={{ headerShown: false }} />   
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

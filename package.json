@@ -59,7 +59,8 @@
     "secure-store": "^0.0.1",
     "stream-browserify": "^3.0.0",
     "text-encoding": "^0.7.0",
-    "web-streams-polyfill": "^4.1.0"
+    "web-streams-polyfill": "^4.1.0",
+    "expo-sms": "~13.1.4"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
