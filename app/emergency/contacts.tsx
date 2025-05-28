@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
 type Contact = {
   id: string;
@@ -116,7 +116,15 @@ export default function ContactsScreen() {
   };
 
   const handleCall = (phoneNumber: string) => {
-    Linking.openURL(`tel:${phoneNumber}`);
+    // Show confirmation dialog before making call
+    Alert.alert(
+      'Make Phone Call',
+      `Call ${phoneNumber}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Call', onPress: () => Linking.openURL(`tel:${phoneNumber}`) }
+      ]
+    );
   };
 
   const filteredContacts = filter === 'all' 
@@ -132,6 +140,19 @@ export default function ContactsScreen() {
     }
   };
 
+  const getRelationIcon = (relation: string) => {
+    switch(relation) {
+      case 'emergency':
+        return <MaterialIcons name="emergency" size={14} color={getRelationColor(relation)} />;
+      case 'hospital':
+        return <FontAwesome5 name="hospital" size={14} color={getRelationColor(relation)} />;
+      case 'doctor':
+        return <FontAwesome5 name="user-md" size={14} color={getRelationColor(relation)} />;
+      default:
+        return <Ionicons name="person" size={14} color={getRelationColor(relation)} />;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient
@@ -140,14 +161,18 @@ export default function ContactsScreen() {
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <IconSymbol size={24} name="chevron.left" color="#0084ff" />
+            <Ionicons name="chevron-back" size={24} color="#0084ff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Emergency Contacts</Text>
           <TouchableOpacity 
             style={[styles.addButton, showAddForm && styles.activeAddButton]}
             onPress={() => setShowAddForm(!showAddForm)}
           >
-            <IconSymbol size={24} name={showAddForm ? "xmark" : "plus"} color={showAddForm ? "#fff" : "#0084ff"} />
+            {showAddForm ? (
+              <Ionicons name="close" size={24} color="#fff" />
+            ) : (
+              <Ionicons name="add" size={24} color="#0084ff" />
+            )}
           </TouchableOpacity>
         </View>
       
@@ -261,7 +286,7 @@ export default function ContactsScreen() {
           </View>
         ) : filteredContacts.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <IconSymbol size={50} name="person.crop.circle.badge.plus" color="#c5d5e6" />
+            <MaterialIcons name="person-add" size={50} color="#c5d5e6" />
             <Text style={styles.emptyText}>No contacts found</Text>
             <Text style={styles.emptySubtext}>
               {filter === 'all' 
@@ -277,21 +302,41 @@ export default function ContactsScreen() {
                 <Text style={styles.contactName}>{contact.name}</Text>
                 <Text style={styles.contactNumber}>{contact.phone_number}</Text>
                 <View style={[styles.contactBadge, { backgroundColor: `${getRelationColor(contact.relation)}15` }]}>
-                  <Text style={[styles.contactBadgeText, { color: getRelationColor(contact.relation) }]}>{contact.relation}</Text>
+                  <View style={styles.badgeIconContainer}>
+                    {getRelationIcon(contact.relation)}
+                    <Text style={[styles.contactBadgeText, { color: getRelationColor(contact.relation) }]}>
+                      {contact.relation}
+                    </Text>
+                  </View>
                 </View>
               </View>
               <View style={styles.contactActions}>
+                {/* Enhanced Call Button */}
+                
+                
+                {/* Dial Button - Opens phone dialer directly */}
                 <TouchableOpacity 
-                  style={[styles.callButton, { backgroundColor: '#0084ff' }]}
-                  onPress={() => handleCall(contact.phone_number)}
+                  style={styles.dialButton}
+                  onPress={() => Linking.openURL(`tel:${contact.phone_number}`)}
                 >
-                  <IconSymbol size={20} name="phone.fill" color="#fff" />
+                  <LinearGradient
+                    colors={['#34c759', '#30d158']}
+                    style={styles.callButtonGradient}
+                  >
+                    <FontAwesome5 name="phone-alt" size={18} color="#fff" />
+                  </LinearGradient>
                 </TouchableOpacity>
+                
                 <TouchableOpacity 
-                  style={[styles.deleteButton, { backgroundColor: '#ff3b30' }]}
+                  style={styles.deleteButton}
                   onPress={() => handleDeleteContact(contact.id)}
                 >
-                  <IconSymbol size={20} name="trash.fill" color="#fff" />
+                  <LinearGradient
+                    colors={['#ff3b30', '#ff4d40']}
+                    style={styles.callButtonGradient}
+                  >
+                    <Ionicons name="trash" size={20} color="#fff" />
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
@@ -468,10 +513,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignSelf: 'flex-start',
   },
+  badgeIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   contactBadgeText: {
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'capitalize',
+    marginLeft: 4,
   },
   contactActions: {
     flexDirection: 'row',
@@ -481,22 +531,38 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginLeft: 8,
+    overflow: 'hidden',
     shadowColor: '#0084ff',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 2,
   },
+  dialButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: 8,
+    overflow: 'hidden',
+    shadowColor: '#34c759',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  callButtonGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   deleteButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginLeft: 8,
+    overflow: 'hidden',
     shadowColor: '#ff3b30',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
