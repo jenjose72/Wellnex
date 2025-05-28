@@ -6,6 +6,7 @@ import { Link, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { FontAwesome5, Fontisto, MaterialIcons } from '@expo/vector-icons';
 
 type Contact = {
   id: string;
@@ -122,7 +123,7 @@ export default function EmergencyScreen() {
           <Link href="/emergency/contacts" asChild>
             <TouchableOpacity style={styles.quickActionButton}>
               <View style={styles.quickActionIcon}>
-                <IconSymbol size={24} name="person.crop.circle.fill" color="#0084ff" />
+                <MaterialIcons size={24} name="contact-emergency" color="#0084ff" />
               </View>
               <Text style={styles.quickActionText}>Emergency Contacts</Text>
             </TouchableOpacity>
@@ -131,7 +132,7 @@ export default function EmergencyScreen() {
           <Link href="/emergency/first-aid" asChild>
             <TouchableOpacity style={styles.quickActionButton}>
               <View style={styles.quickActionIcon}>
-                <IconSymbol size={24} name="cross.case.fill" color="#0084ff" />
+                <FontAwesome5 size={24} name="first-aid" color="#0084ff" />
               </View>
               <Text style={styles.quickActionText}>First Aid Library</Text>
             </TouchableOpacity>
@@ -140,7 +141,7 @@ export default function EmergencyScreen() {
           <Link href="/emergency/nearby" asChild>
             <TouchableOpacity style={styles.quickActionButton}>
               <View style={styles.quickActionIcon}>
-                <IconSymbol size={24} name="map.fill" color="#0084ff" />
+                <FontAwesome5 size={24} name="hospital" color="#0084ff" />
               </View>
               <Text style={styles.quickActionText}>Nearby Clinics</Text>
             </TouchableOpacity>
@@ -149,7 +150,7 @@ export default function EmergencyScreen() {
           <Link href="/emergency/sos" asChild>
             <TouchableOpacity style={styles.quickActionButton}>
               <View style={styles.quickActionIcon}>
-                <IconSymbol size={24} name="exclamationmark.shield.fill" color="#0084ff" />
+                <Fontisto size={24} name="ambulance" color="#0084ff" />
               </View>
               <Text style={styles.quickActionText}>Emergency SOS</Text>
             </TouchableOpacity>
@@ -173,7 +174,7 @@ export default function EmergencyScreen() {
             </View>
           ) : contacts.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <IconSymbol size={24} name="person.crop.circle.badge.plus" color="#c5d5e6" />
+             <MaterialIcons size={24} name="contact-emergency" color="#0084ff" />
               <Text style={styles.emptyText}>No emergency contacts found</Text>
               <Link href="/emergency/contacts" asChild>
                 <TouchableOpacity style={styles.addContactButton}>

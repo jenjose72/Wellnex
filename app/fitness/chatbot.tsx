@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { MaterialIcons } from '@expo/vector-icons';
 
 // Initialize the Gemini API with your API key
 // You'll need to store this securely, preferably using environment variables
@@ -200,7 +201,7 @@ export default function ChatbotScreen() {
         style={styles.header}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol size={24} name="chevron.left" color="#333" />
+          <MaterialIcons size={24} name="chevron-left" color="#333" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Fitness Health Assistant</Text>

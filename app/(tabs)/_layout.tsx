@@ -8,6 +8,7 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuth } from '@/contexts/AuthContext';
+import { Fontisto, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -59,28 +60,28 @@ export default function TabLayout() {
         name="emergency"
         options={{
           title: 'Emergency',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="exclamationmark.shield.fill" color={color} />,
+          tabBarIcon: ({ color }) => <MaterialIcons size={28} name="emergency" color={color} />,
         }}
       />
       <Tabs.Screen
         name="medication"
         options={{
           title: 'Medication',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="pills.fill" color={color} />,
+          tabBarIcon: ({ color }) => <Fontisto size={26} name="pills" color={color} />,
         }}
       />
       <Tabs.Screen
         name="fitness"
         options={{
           title: 'Fitness',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="figure.run" color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons size={28} name="fitness-sharp" color={color} />,
         }}
       />
       <Tabs.Screen
         name="mental"
         options={{
           title: 'Mental',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="brain.head.profile" color={color} />,
+          tabBarIcon: ({ color }) => <MaterialCommunityIcons size={28} name="brain" color={color} />,
         }}
       />
     </Tabs>

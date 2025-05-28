@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,13 +6,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Link, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { Entypo, FontAwesome, FontAwesome5, Foundation, Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { format, parse, addDays, addWeeks, addMonths, isBefore, parseISO } from 'date-fns';
 
 type MedicationReminder = {
   id: string;
   medicine_name: string;
   dosage: string;
   time: string;
+  time_numeric?: string;
+  next_scheduled?: string;
   repeat_pattern: string;
+  notes?: string;
 };
 
 type EmergencyContact = {
@@ -96,8 +101,6 @@ export default function HomeScreen() {
         .from('medication_reminders')
         .select('*')
         .eq('user_id', user.id)
-        .lte('start_date', today)
-        .gte('end_date', today)
         .order('time', { ascending: true });
       
       if (error) throw error;
@@ -135,14 +138,143 @@ export default function HomeScreen() {
     router.push('/emergency/sos');
   };
 
-  const formatTime = (timeString: string) => {
+  // Get appropriate icon for repeat pattern
+  const getRepeatPatternIcon = (pattern) => {
+    switch(pattern) {
+      case 'Daily':
+        return <MaterialCommunityIcons name="calendar-refresh" size={16} color="#228be6" />;
+      case 'Weekly':
+        return <MaterialCommunityIcons name="calendar-week" size={16} color="#228be6" />;
+      case 'Monthly':
+        return <MaterialCommunityIcons name="calendar-month" size={16} color="#228be6" />;
+      case 'As needed':
+        return <Ionicons name="timer-outline" size={16} color="#228be6" />;
+      default:
+        return null;
+    }
+  };
+
+  // Add mark as taken functionality
+  const markMedicationAsTaken = async (med: MedicationReminder) => {
     try {
-      const [hours, minutes] = timeString.split(':');
-      const date = new Date();
-      date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
-      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      // Calculate when the next dose should be scheduled based on repeat pattern
+      let nextScheduled = null;
+      
+      if (med.repeat_pattern && med.repeat_pattern !== 'As needed') {
+        try {
+          // Get current time as the base for the next scheduled time
+          const now = new Date();
+          
+          // Extract hours and minutes from the time_numeric field if available, otherwise from time
+          let hours = 8; // Default to 8 AM if time format can't be parsed
+          let minutes = 0;
+          
+          if (med.time_numeric) {
+            const timeParts = med.time_numeric.split(':');
+            if (timeParts.length === 2) {
+              hours = parseInt(timeParts[0], 10);
+              minutes = parseInt(timeParts[1], 10);
+            }
+          } else if (med.time) {
+            const formattedTime = formatTimeFor24Hour(med.time);
+            if (formattedTime) {
+              const timeParts = formattedTime.split(':');
+              if (timeParts.length === 2) {
+                hours = parseInt(timeParts[0], 10);
+                minutes = parseInt(timeParts[1], 10);
+              }
+            }
+          }
+          
+          // Validate hours and minutes
+          if (isNaN(hours) || hours < 0 || hours > 23 || isNaN(minutes) || minutes < 0 || minutes > 59) {
+            throw new Error(`Invalid time components: hours=${hours}, minutes=${minutes}`);
+          }
+          
+          // Set base time for next dose to today with the same time
+          nextScheduled = new Date();
+          nextScheduled.setHours(hours, minutes, 0, 0);
+          
+          // Calculate next scheduled date based on repeat pattern
+          switch (med.repeat_pattern) {
+            case 'Daily':
+              // If it's already past the time today, schedule for tomorrow
+              if (isBefore(nextScheduled, now)) {
+                nextScheduled = addDays(nextScheduled, 1);
+              }
+              break;
+            case 'Weekly':
+              nextScheduled = addDays(nextScheduled, 7);
+              break;
+            case 'Monthly':
+              nextScheduled = addMonths(nextScheduled, 1);
+              break;
+          }
+        } catch (timeError) {
+          console.error('Error processing medication time:', timeError);
+          // If there's an error with the time, set next schedule to tomorrow at 8 AM as a fallback
+          nextScheduled = addDays(new Date(), 1);
+          nextScheduled.setHours(8, 0, 0, 0);
+        }
+      }
+      
+      // Update medication with new next_scheduled date and last_taken time
+      const { error } = await supabase
+        .from('medication_reminders')
+        .update({ 
+          next_scheduled: nextScheduled ? nextScheduled.toISOString() : null,
+          last_taken: new Date().toISOString()
+        })
+        .eq('id', med.id);
+      
+      if (error) {
+        console.error('Error updating medication:', error);
+        Alert.alert('Error', 'Failed to update medication status');
+      } else {
+        // Refresh medications list
+        fetchUpcomingMedications();
+        Alert.alert('Success', `${med.medicine_name} marked as taken! Next dose scheduled.`);
+      }
     } catch (e) {
-      return timeString;
+      console.error('Error in markMedicationAsTaken:', e);
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+
+  // Fixed function to format time from 12-hour to 24-hour format
+  const formatTimeFor24Hour = (timeStr) => {
+    if (!timeStr) return null;
+    
+    try {
+      // Handle "hh:mm a" format (like "08:30 AM")
+      if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) {
+        const timeParts = timeStr.match(/(\d+):(\d+)\s*(am|pm|AM|PM)/i);
+        if (timeParts) {
+          let hours = parseInt(timeParts[1], 10);
+          const minutes = parseInt(timeParts[2], 10);
+          const period = timeParts[3].toLowerCase();
+          
+          // Convert to 24-hour format
+          if (period === 'pm' && hours < 12) hours += 12;
+          if (period === 'am' && hours === 12) hours = 0;
+          
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+      }
+      
+      // If already in HH:MM format, validate and return
+      const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+      if (timeRegex.test(timeStr)) {
+        const [hours, minutes] = timeStr.split(':').map(num => parseInt(num, 10));
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      }
+      
+      // If we can't parse it, return a default time
+      console.warn(`Could not parse time format: ${timeStr}, using default 08:00`);
+      return "08:00";
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return "08:00"; // Safe default
     }
   };
 
@@ -166,7 +298,7 @@ export default function HomeScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.sosButtonInner}
               >
-                <IconSymbol size={20} name="phone.fill" color="#fff" />
+                <FontAwesome size={20} name="phone" color="#fff" />
                 <Text style={styles.sosText}>SOS</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -214,7 +346,7 @@ export default function HomeScreen() {
                   </View>
                   <Link href="/profile/edit" asChild>
                     <TouchableOpacity style={styles.editButton}>
-                      <IconSymbol size={18} name="pencil" color="#fff" />
+                      <Foundation size={18} name="pencil" color="#fff" />
                     </TouchableOpacity>
                   </Link>
                 </View>
@@ -259,7 +391,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
-              <IconSymbol size={22} name="pills.fill" color="#0084ff" />
+              <FontAwesome5 name="pills" size={20} color="#1971c2" />
               <Text style={styles.sectionTitle}>Upcoming Medications</Text>
             </View>
             <Link href="/health/medications" asChild>
@@ -276,7 +408,7 @@ export default function HomeScreen() {
             </View>
           ) : upcomingMedications.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <IconSymbol size={24} name="pills.fill" color="#c5d5e6" />
+              <FontAwesome5 size={24} name="pills" color="#c5d5e6" />
               <Text style={styles.emptyText}>No upcoming medications</Text>
               <Link href="/health/medications" asChild>
                 <TouchableOpacity style={styles.addButton}>
@@ -285,21 +417,103 @@ export default function HomeScreen() {
               </Link>
             </View>
           ) : (
-            upcomingMedications.slice(0, 3).map((medication) => (
-              <View key={medication.id} style={styles.medicationCard}>
-                <View style={styles.medicationTimeContainer}>
-                  <Text style={styles.medicationTime}>{formatTime(medication.time)}</Text>
+            // Display just the first medication with the new styling from medication.tsx
+            upcomingMedications.slice(0, 1).map((med) => {
+              // Format the next scheduled date for display
+              let nextDoseText = 'Not scheduled';
+              let isOverdue = false;
+              
+              if (med.next_scheduled) {
+                try {
+                  const nextDate = parseISO(med.next_scheduled);
+                  const now = new Date();
+                  isOverdue = isBefore(nextDate, now);
+                  
+                  // Show date only if it's not today
+                  const isToday = nextDate.getDate() === now.getDate() && 
+                                  nextDate.getMonth() === now.getMonth() &&
+                                  nextDate.getFullYear() === now.getFullYear();
+                                  
+                  if (isToday) {
+                    nextDoseText = `Today at ${med.time}`;
+                  } else {
+                    // Format the date to a user-friendly string
+                    const day = nextDate.getDate();
+                    const month = nextDate.toLocaleString('default', { month: 'short' });
+                    nextDoseText = `${day} ${month} at ${med.time}`;
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing next scheduled date:', parseError);
+                  nextDoseText = 'Schedule error';
+                }
+              } else if (med.repeat_pattern === 'As needed') {
+                nextDoseText = 'Take as needed';
+              }
+              
+              return (
+                <View key={med.id} style={styles.medicationCard}>
+                  <View style={[
+                    styles.medicationTime,
+                    isOverdue ? styles.medicationTimeOverdue : null
+                  ]}>
+                    {isOverdue ? (
+                      <Ionicons name="warning" size={18} color="#ff6b6b" />
+                    ) : (
+                      <Ionicons name="time" size={18} color="#1971c2" />
+                    )}
+                    <Text style={[
+                      styles.timeText, 
+                      isOverdue ? styles.timeTextOverdue : null
+                    ]}>
+                      {nextDoseText}
+                    </Text>
+                  </View>
+                  <View style={styles.medicationDetails}>
+                    <Text style={styles.medicationName}>{med.medicine_name}</Text>
+                    <Text style={styles.medicationDosage}>{med.dosage}</Text>
+                    {med.repeat_pattern ? (
+                      <View style={styles.repeatPatternRow}>
+                        {getRepeatPatternIcon(med.repeat_pattern)}
+                        <Text style={styles.repeatPatternText}>
+                          {med.repeat_pattern}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {med.notes ? (
+                      <View style={styles.notesRow}>
+                        <MaterialIcons name="notes" size={16} color="#adb5bd" />
+                        <Text style={styles.notesText}>{med.notes}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <View style={styles.actionButtons}>
+                    <Link href="/health/medications" asChild>
+                      <TouchableOpacity style={styles.actionButton}>
+                        <MaterialIcons name="delete-outline" size={20} color="#339af0" />
+                      </TouchableOpacity>
+                    </Link>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.checkButton]}
+                      onPress={() => {
+                        Alert.alert(
+                          "Mark as Taken",
+                          `Mark ${med.medicine_name} as taken?`,
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            { 
+                              text: "Confirm", 
+                              onPress: () => markMedicationAsTaken(med)
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <Ionicons name="checkmark" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={styles.medicationInfo}>
-                  <Text style={styles.medicationName}>{medication.medicine_name}</Text>
-                  <Text style={styles.medicationDosage}>{medication.dosage}</Text>
-                  <Text style={styles.medicationPattern}>{medication.repeat_pattern}</Text>
-                </View>
-                <TouchableOpacity style={styles.medicationTakenButton}>
-                  <IconSymbol size={20} name="checkmark" color="#0084ff" />
-                </TouchableOpacity>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
 
@@ -307,7 +521,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
-              <IconSymbol size={22} name="sparkles" color="#0084ff" />
+              <Ionicons size={22} name="sparkles" color="#0084ff" />
               <Text style={styles.sectionTitle}>Quick Access</Text>
             </View>
           </View>
@@ -317,7 +531,7 @@ export default function HomeScreen() {
             <Link href="/mental/chatbot" asChild>
               <TouchableOpacity style={styles.quickAccessCard}>
                 <View style={[styles.quickAccessIcon, { backgroundColor: '#e6f2ff' }]}>
-                  <IconSymbol size={24} name="message.fill" color="#0084ff" />
+                  <Entypo size={24} name="chat" color="#0084ff" />
                 </View>
                 <Text style={styles.quickAccessText}>Mental Health Assistant</Text>
               </TouchableOpacity>
@@ -327,7 +541,7 @@ export default function HomeScreen() {
             <Link href="/emergency/contacts" asChild>
               <TouchableOpacity style={styles.quickAccessCard}>
                 <View style={[styles.quickAccessIcon, { backgroundColor: '#ffe6e6' }]}>
-                  <IconSymbol size={24} name="person.crop.circle.fill" color="#ff3b30" />
+                  <MaterialIcons size={24} name="contact-emergency" color="#ff3b30" />
                 </View>
                 <Text style={styles.quickAccessText}>Emergency Contacts</Text>
               </TouchableOpacity>
@@ -337,7 +551,7 @@ export default function HomeScreen() {
             <Link href="/emergency/nearby" asChild>
               <TouchableOpacity style={styles.quickAccessCard}>
                 <View style={[styles.quickAccessIcon, { backgroundColor: '#e6ffed' }]}>
-                  <IconSymbol size={24} name="map.fill" color="#34c759" />
+                  <FontAwesome5 size={24} name="hospital" color="#34c759" />
                 </View>
                 <Text style={styles.quickAccessText}>Nearby Clinics</Text>
               </TouchableOpacity>
@@ -347,7 +561,7 @@ export default function HomeScreen() {
             <Link href="/mental/journal" asChild>
               <TouchableOpacity style={styles.quickAccessCard}>
                 <View style={[styles.quickAccessIcon, { backgroundColor: '#fff0e6' }]}>
-                  <IconSymbol size={24} name="book.fill" color="#ff9500" />
+                  <Entypo size={24} name="open-book" color="#ff9500" />
                 </View>
                 <Text style={styles.quickAccessText}>Mood Journal</Text>
               </TouchableOpacity>
@@ -359,7 +573,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
-              <IconSymbol size={22} name="person.crop.circle.badge.plus" color="#0084ff" />
+              <MaterialIcons size={22} name="contact-emergency" color="#0084ff" />
               <Text style={styles.sectionTitle}>Emergency Contacts</Text>
             </View>
             <Link href="/emergency/contacts" asChild>
@@ -376,7 +590,7 @@ export default function HomeScreen() {
             </View>
           ) : emergencyContacts.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <IconSymbol size={24} name="person.crop.circle.badge.plus" color="#c5d5e6" />
+              <MaterialIcons size={24} name="contact-emergency" color="#c5d5e6" />
               <Text style={styles.emptyText}>No emergency contacts</Text>
               <Link href="/emergency/contacts" asChild>
                 <TouchableOpacity style={styles.addButton}>
@@ -642,13 +856,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 14,
   },
+  // Updated medication card styling to match medication.tsx
   medicationCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 12,
+    flexDirection: 'column',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -657,47 +871,80 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f0f0f0',
   },
-  medicationTimeContainer: {
-    height: 50,
-    width: 50,
-    borderRadius: 25,
-    backgroundColor: '#f0f7ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
   medicationTime: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0084ff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f7ff',
   },
-  medicationInfo: {
-    flex: 1,
+  medicationTimeOverdue: {
+    borderBottomColor: '#ffecec',
+  },
+  timeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1971c2',
+    marginLeft: 6,
+  },
+  timeTextOverdue: {
+    color: '#ff6b6b',
+  },
+  medicationDetails: {
+    marginBottom: 12,
   },
   medicationName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   medicationDosage: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  medicationPattern: {
-    fontSize: 12,
-    color: '#999',
+  repeatPatternRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  medicationTakenButton: {
-    height: 36,
+  repeatPatternText: {
+    color: '#495057',
+    fontSize: 14,
+    marginLeft: 6,
+    fontWeight: '500',
+  },
+  notesRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 8,
+  },
+  notesText: {
+    color: '#adb5bd',
+    fontSize: 13,
+    marginLeft: 6,
+    flex: 1,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f7ff',
+    paddingTop: 12,
+  },
+  actionButton: {
     width: 36,
+    height: 36,
     borderRadius: 18,
-    backgroundColor: '#f0f7ff',
+    backgroundColor: '#f1f8ff',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d7eaff',
+    marginLeft: 8,
+  },
+  checkButton: {
+    backgroundColor: '#339af0',
   },
   quickAccessGrid: {
     flexDirection: 'row',
@@ -793,5 +1040,62 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 2,
+  },
+  headerTitleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    marginRight: 10,
+  },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalIcon: {
+    marginRight: 8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e7f5ff',
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  inputIcon: {
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  descriptionContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  descriptionIcon: {
+    marginRight: 6,
+    marginTop: 2,
+  },
+  historyTypeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  historyTypeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  typeOption: {
+    backgroundColor: '#e7f5ff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

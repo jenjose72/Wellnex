@@ -7,6 +7,7 @@ import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { Entypo, FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 
 type MoodLog = {
   id: string;
@@ -244,11 +245,11 @@ export default function SummaryScreen() {
         style={styles.header}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol size={24} name="chevron.left" color="#333" />
+          <Entypo size={24} name="chevron-left" color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mental Wellness Summary</Text>
         <TouchableOpacity onPress={fetchMoodData} style={styles.refreshButton}>
-          <IconSymbol size={20} name="arrow.clockwise" color="#333" />
+          <FontAwesome size={20} name="refresh" color="#333" />
         </TouchableOpacity>
       </LinearGradient>
       
@@ -374,7 +375,7 @@ export default function SummaryScreen() {
                   end={{ x: 1, y: 0 }}
                   style={styles.insightIcon}
                 >
-                  <IconSymbol size={24} name="figure.walk" color="#34c759" />
+                  <FontAwesome5 size={24} name="walking" color="#34c759" />
                 </LinearGradient>
                 <View style={styles.insightContent}>
                   <Text style={styles.insightTitle}>Exercise helps your mood</Text>
@@ -400,7 +401,7 @@ export default function SummaryScreen() {
                   end={{ x: 1, y: 0 }}
                   style={styles.insightIcon}
                 >
-                  <IconSymbol size={24} name="bed.double.fill" color="#ff9500" />
+                  <FontAwesome5 size={24} name="bed" color="#ff9500" />
                 </LinearGradient>
                 <View style={styles.insightContent}>
                   <Text style={styles.insightTitle}>Sleep affects your wellbeing</Text>

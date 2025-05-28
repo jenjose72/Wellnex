@@ -8,6 +8,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { Entypo, FontAwesome, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
 
 export default function MentalScreen() {
   const { user } = useAuth();
@@ -276,11 +277,11 @@ export default function MentalScreen() {
   
   const getMoodIcon = (mood) => {
     switch(mood) {
-      case 'Great': return "face.smiling.fill";
-      case 'Good': return "face.dashed.fill";
-      case 'Okay': return "face.dashed";
-      case 'Bad': return "face.frown.fill";
-      default: return "face.dashed";
+      case 'Great': return "face-smile-beam";
+      case 'Good': return "face-smile";
+      case 'Okay': return "face-meh";
+      case 'Bad': return "face-sad-tear";
+      default: return "face-meh";
     }
   };
 
@@ -329,7 +330,7 @@ export default function MentalScreen() {
                         }
                       ]}
                     >
-                      <IconSymbol 
+                      <FontAwesome6 
                         size={28} 
                         name={getMoodIcon(mood)} 
                         color={selectedMood === mood ? '#fff' : getMoodColor(mood)} 
@@ -400,7 +401,7 @@ export default function MentalScreen() {
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <View style={styles.statIconContainer}>
-                <IconSymbol size={18} name="face.smiling" color="#0084ff" />
+                <FontAwesome6 size={18} name="face-smile-wink" color="#0084ff" />
               </View>
               <Text style={styles.statLabel}>Average Mood</Text>
               <Text style={styles.statValue}>{moodAnalysis.averageMood}</Text>
@@ -410,7 +411,7 @@ export default function MentalScreen() {
             
             <View style={styles.statItem}>
               <View style={styles.statIconContainer}>
-                <IconSymbol size={18} name="chart.line.uptrend.xyaxis" color={parseFloat(moodAnalysis.improvement) >= 0 ? "#28a745" : "#dc3545"} />
+                <FontAwesome size={18} name="line-chart" color={parseFloat(moodAnalysis.improvement) >= 0 ? "#28a745" : "#dc3545"} />
               </View>
               <Text style={styles.statLabel}>Weekly Change</Text>
               <Text style={[styles.statValue, {color: parseFloat(moodAnalysis.improvement) >= 0 ? "#28a745" : "#dc3545"}]}>
@@ -422,7 +423,7 @@ export default function MentalScreen() {
             
             <View style={styles.statItem}>
               <View style={styles.statIconContainer}>
-                <IconSymbol size={18} name="exclamationmark.triangle" color="#ff9500" />
+                <FontAwesome size={18} name="exclamation-triangle" color="#ff9500" />
               </View>
               <Text style={styles.statLabel}>Top Trigger</Text>
               <Text style={styles.statValue}>{moodAnalysis.topTrigger}</Text>
@@ -436,7 +437,7 @@ export default function MentalScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.recommendationContainer}
           >
-            <IconSymbol size={22} name="lightbulb.fill" color="#0084ff" />
+            <Entypo size={22} name="light-bulb" color="#0084ff" />
             <Text style={styles.recommendationText}>
               {moodAnalysis.recommendation}
             </Text>
@@ -449,7 +450,7 @@ export default function MentalScreen() {
           <Link href="/mental/chatbot" asChild>
             <TouchableOpacity style={styles.featureCard}>
               <View style={[styles.featureIcon, { backgroundColor: '#e6f2ff' }]}>
-                <IconSymbol size={24} name="message.fill" color="#0084ff" />
+                <Entypo size={24} name="chat" color="#0084ff" />
               </View>
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>Mental Health Chatbot</Text>
@@ -462,7 +463,7 @@ export default function MentalScreen() {
           <Link href="/mental/journal" asChild>
             <TouchableOpacity style={styles.featureCard}>
               <View style={[styles.featureIcon, { backgroundColor: '#e6f0ff' }]}>
-                <IconSymbol size={24} name="book.fill" color="#0084ff" />
+                <Entypo size={24} name="open-book" color="#0084ff" />
               </View>
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>Mood Journal</Text>
@@ -475,7 +476,7 @@ export default function MentalScreen() {
           <Link href="/mental/summary" asChild>
             <TouchableOpacity style={styles.featureCard}>
               <View style={[styles.featureIcon, { backgroundColor: '#e6f2ff' }]}>
-                <IconSymbol size={24} name="chart.bar_fill" color="#0084ff" />
+                <FontAwesome5 size={24} name="brain" color="#0084ff" />
               </View>
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>Weekly Summary</Text>

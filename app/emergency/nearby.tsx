@@ -1,4 +1,5 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -711,7 +712,7 @@ export default function NearbyScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol size={24} name="chevron.left" color="#333" />
+          <MaterialIcons size={24} name="chevron-left" color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Emergency Services</Text>
         <TouchableOpacity 
@@ -719,7 +720,7 @@ export default function NearbyScreen() {
           style={styles.refreshButton}
           disabled={!location || isLoading}
         >
-          <IconSymbol size={20} name="arrow.clockwise" color={location && !isLoading ? "#007aff" : "#999"} />
+          <MaterialIcons size={20} name="refresh" color={location && !isLoading ? "#007aff" : "#999"} />
         </TouchableOpacity>
       </View>
       

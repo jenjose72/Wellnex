@@ -18,6 +18,8 @@ import { format, parse, addDays, addWeeks, addMonths, isBefore, parseISO } from 
 import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import styles from '@/styles/medication';
+import { MaterialIcons, Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function MedicationScreen() {
   const navigation = useNavigation();
@@ -64,6 +66,46 @@ export default function MedicationScreen() {
     'Emergency',
     'Other'
   ];
+
+  // Get appropriate icon for medical history type
+  const getHistoryTypeIcon = (type) => {
+    switch(type) {
+      case 'Diagnosis':
+        return <MaterialIcons name="medical-services" size={18} color="#fff" />;
+      case 'Surgery':
+        return <Ionicons name="cut-sharp" size={18} color="#fff" />;
+      case 'Allergy':
+        return <FontAwesome5 name="allergies" size={16} color="#fff" />;
+      case 'Vaccination':
+        return <FontAwesome5 name="syringe" size={16} color="#fff" />;
+      case 'Lab Result':
+        return <MaterialIcons name="science" size={18} color="#fff" />;
+      case 'Treatment':
+        return <FontAwesome5 name="hand-holding-medical" size={16} color="#fff" />;
+      case 'Emergency':
+        return <Ionicons name="warning" size={18} color="#fff" />;
+      case 'Other':
+        return <MaterialCommunityIcons name="file-document-outline" size={18} color="#fff" />;
+      default:
+        return <MaterialIcons name="event-note" size={18} color="#fff" />;
+    }
+  };
+
+  // Get appropriate icon for repeat pattern
+  const getRepeatPatternIcon = (pattern) => {
+    switch(pattern) {
+      case 'Daily':
+        return <MaterialCommunityIcons name="calendar-refresh" size={16} color="#228be6" />;
+      case 'Weekly':
+        return <MaterialCommunityIcons name="calendar-week" size={16} color="#228be6" />;
+      case 'Monthly':
+        return <MaterialCommunityIcons name="calendar-month" size={16} color="#228be6" />;
+      case 'As needed':
+        return <Ionicons name="timer-outline" size={16} color="#228be6" />;
+      default:
+        return null;
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -551,8 +593,13 @@ export default function MedicationScreen() {
         style={styles.headerGradient}
       >
         <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Health Management</Text>
-          <Text style={styles.headerSubtitle}>Track medications and medical history</Text>
+          <View style={styles.headerTitleWrapper}>
+            <MaterialIcons name="health-and-safety" size={32} color="#1971c2" style={styles.headerIcon} />
+            <View>
+              <Text style={styles.headerTitle}>Health Management</Text>
+              <Text style={styles.headerSubtitle}>Track medications and medical history</Text>
+            </View>
+          </View>
         </View>
       </LinearGradient>
 
@@ -561,21 +608,21 @@ export default function MedicationScreen() {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
-              <IconSymbol name="pills" size={20} color="#1971c2" />
+              <FontAwesome5 name="pills" size={20} color="#1971c2" />
               <Text style={styles.sectionTitle}>Today's Medications</Text>
             </View>
             <TouchableOpacity
               style={styles.addButton}
               onPress={() => setModalVisible(true)}
             >
-              <IconSymbol size={16} name="plus" color="#fff" />
+              <Ionicons name="add" size={18} color="#fff" />
               <Text style={styles.addButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
 
           {medications.length === 0 ? (
             <View style={styles.emptyState}>
-              <IconSymbol name="pill" size={36} color="#74c0fc" />
+              <FontAwesome5 name="prescription-bottle" size={36} color="#74c0fc" />
               <Text style={styles.emptyStateText}>No medications scheduled</Text>
               <Text style={styles.emptyStateSubtext}>Add your medications to get reminders</Text>
             </View>
@@ -618,11 +665,11 @@ export default function MedicationScreen() {
                     styles.medicationTime,
                     isOverdue ? styles.medicationTimeOverdue : null
                   ]}>
-                    <IconSymbol 
-                      name={isOverdue ? "exclamationmark.circle" : "clock"} 
-                      size={18} 
-                      color={isOverdue ? "#ff6b6b" : "#1971c2"} 
-                    />
+                    {isOverdue ? (
+                      <Ionicons name="warning" size={18} color="#ff6b6b" />
+                    ) : (
+                      <Ionicons name="time" size={18} color="#1971c2" />
+                    )}
                     <Text style={[
                       styles.timeText, 
                       isOverdue ? styles.timeTextOverdue : null
@@ -634,14 +681,18 @@ export default function MedicationScreen() {
                     <Text style={styles.medicationName}>{med.medicine_name}</Text>
                     <Text style={styles.medicationDosage}>{med.dosage}</Text>
                     {med.repeat_pattern ? (
-                      <Text style={styles.repeatPatternText}>
-                        Repeat: {med.repeat_pattern}
-                      </Text>
+                      <View style={styles.repeatPatternRow}>
+                        {getRepeatPatternIcon(med.repeat_pattern)}
+                        <Text style={styles.repeatPatternText}>
+                          {med.repeat_pattern}
+                        </Text>
+                      </View>
                     ) : null}
                     {med.notes ? (
-                      <Text style={styles.notesText}>
-                        Notes: {med.notes}
-                      </Text>
+                      <View style={styles.notesRow}>
+                        <MaterialIcons name="notes" size={16} color="#adb5bd" />
+                        <Text style={styles.notesText}>{med.notes}</Text>
+                      </View>
                     ) : null}
                   </View>
                   <View style={styles.actionButtons}>
@@ -674,7 +725,7 @@ export default function MedicationScreen() {
                         );
                       }}
                     >
-                      <IconSymbol size={16} name="trash" color="#ff6b6b" />
+                      <MaterialIcons name="delete-outline" size={20} color="#339af0" />
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.actionButton, styles.checkButton]}
@@ -692,7 +743,7 @@ export default function MedicationScreen() {
                         );
                       }}
                     >
-                      <IconSymbol size={16} name="checkmark" color="#fff" />
+                      <Ionicons name="checkmark" size={18} color="#fff" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -705,21 +756,21 @@ export default function MedicationScreen() {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
-              <IconSymbol name="doc.text" size={20} color="#1971c2" />
+              <MaterialIcons name="history-edu" size={22} color="#1971c2" />
               <Text style={styles.sectionTitle}>Medical History</Text>
             </View>
             <TouchableOpacity
               style={styles.addButton}
               onPress={() => setHistoryModalVisible(true)}
             >
-              <IconSymbol size={16} name="plus" color="#fff" />
+              <Ionicons name="add" size={18} color="#fff" />
               <Text style={styles.addButtonText}>Add</Text>
             </TouchableOpacity>
           </View>
 
           {medicalHistory.length === 0 ? (
             <View style={styles.emptyState}>
-              <IconSymbol name="doc.text" size={36} color="#74c0fc" />
+              <MaterialCommunityIcons name="file-document-outline" size={36} color="#74c0fc" />
               <Text style={styles.emptyStateText}>No medical history records yet</Text>
               <Text style={styles.emptyStateSubtext}>Add your medical history for future reference</Text>
             </View>
@@ -734,20 +785,27 @@ export default function MedicationScreen() {
                         { backgroundColor: getTypeColor(history.type) }
                       ]}
                     >
+                      {getHistoryTypeIcon(history.type)}
                       <Text style={styles.historyTypeText}>{history.type}</Text>
                     </View>
-                    <Text style={styles.historyDate}>{history.date_recorded}</Text>
+                    <View style={styles.historyDateContainer}>
+                      <Ionicons name="calendar" size={14} color="#74c0fc" />
+                      <Text style={styles.historyDate}>{history.date_recorded}</Text>
+                    </View>
                   </View>
                   <TouchableOpacity 
                     style={styles.deleteButton}
                     onPress={() => deleteMedicalHistory(history.id, history.title)}
                   >
-                    <IconSymbol size={16} name="trash" color="#339af0" />
+                    <MaterialIcons name="delete-outline" size={20} color="#339af0" />
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.historyTitle}>{history.title}</Text>
                 {history.description ? (
-                  <Text style={styles.historyDescription}>{history.description}</Text>
+                  <View style={styles.descriptionContainer}>
+                    <MaterialCommunityIcons name="text" size={16} color="#495057" style={styles.descriptionIcon} />
+                    <Text style={styles.historyDescription}>{history.description}</Text>
+                  </View>
                 ) : null}
               </View>
             ))
@@ -759,33 +817,46 @@ export default function MedicationScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Medication</Text>
+                <View style={styles.modalTitleContainer}>
+                  <FontAwesome5 name="prescription-bottle-alt" size={20} color="#1971c2" style={styles.modalIcon} />
+                  <Text style={styles.modalTitle}>Add Medication</Text>
+                </View>
                 <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <IconSymbol name="xmark" size={20} color="#adb5bd" />
+                  <Ionicons name="close" size={22} color="#adb5bd" />
                 </TouchableOpacity>
               </View>
 
-              <TextInput
-                placeholder="Medicine Name"
-                value={newMed.medicine_name}
-                onChangeText={(text) =>
-                  setNewMed({ ...newMed, medicine_name: text })
-                }
-                style={styles.input}
-                placeholderTextColor="#74c0fc"
-              />
-              <TextInput
-                placeholder="Dosage (e.g., 500mg • 1 Tablet)"
-                value={newMed.dosage}
-                onChangeText={(text) =>
-                  setNewMed({ ...newMed, dosage: text })
-                }
-                style={styles.input}
-                placeholderTextColor="#74c0fc"
-              />
+              <View style={styles.inputContainer}>
+                <MaterialIcons name="medication" size={20} color="#1971c2" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Medicine Name"
+                  value={newMed.medicine_name}
+                  onChangeText={(text) =>
+                    setNewMed({ ...newMed, medicine_name: text })
+                  }
+                  style={styles.input}
+                  placeholderTextColor="#74c0fc"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <MaterialCommunityIcons name="pill" size={20} color="#1971c2" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Dosage (e.g., 500mg • 1 Tablet)"
+                  value={newMed.dosage}
+                  onChangeText={(text) =>
+                    setNewMed({ ...newMed, dosage: text })
+                  }
+                  style={styles.input}
+                  placeholderTextColor="#74c0fc"
+                />
+              </View>
               
               {/* Repeat Pattern Selection */}
-              <Text style={styles.inputLabel}>Repeat Pattern</Text>
+              <Text style={styles.inputLabel}>
+                <MaterialCommunityIcons name="repeat" size={18} color="#74c0fc" style={{marginRight: 6}} />
+                Repeat Pattern
+              </Text>
               <View style={styles.repeatPatternContainer}>
                 {['Daily', 'Weekly', 'Monthly', 'As needed'].map((pattern) => (
                   <TouchableOpacity
@@ -796,6 +867,16 @@ export default function MedicationScreen() {
                     ]}
                     onPress={() => setNewMed({ ...newMed, repeat_pattern: pattern })}
                   >
+                    {newMed.repeat_pattern === pattern ? (
+                      <MaterialCommunityIcons 
+                        name={pattern === 'Daily' ? 'calendar-refresh' : 
+                              pattern === 'Weekly' ? 'calendar-week' : 
+                              pattern === 'Monthly' ? 'calendar-month' : 'timer-outline'} 
+                        size={16} 
+                        color="#fff" 
+                        style={{marginRight: 4}} 
+                      />
+                    ) : null}
                     <Text
                       style={[
                         styles.repeatPatternText,
@@ -808,22 +889,25 @@ export default function MedicationScreen() {
                 ))}
               </View>
 
-              <TextInput
-                placeholder="Notes (optional)"
-                value={newMed.notes}
-                onChangeText={(text) =>
-                  setNewMed({ ...newMed, notes: text })
-                }
-                style={styles.input}
-                placeholderTextColor="#74c0fc"
-              />
+              <View style={styles.inputContainer}>
+                <MaterialCommunityIcons name="note-text" size={20} color="#1971c2" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Notes (optional)"
+                  value={newMed.notes}
+                  onChangeText={(text) =>
+                    setNewMed({ ...newMed, notes: text })
+                  }
+                  style={styles.input}
+                  placeholderTextColor="#74c0fc"
+                />
+              </View>
 
               <TouchableOpacity
                 style={styles.dateTimeButton}
                 onPress={() => setShowTimePicker(true)}
               >
                 <View style={styles.dateTimeWrapper}>
-                  <IconSymbol name="time" size={20} color="#1971c2" />
+                  <Ionicons name="time" size={20} color="#1971c2" />
                   <Text style={styles.dateTimeText}>
                     {newMed.time || 'Select Time'}
                   </Text>
@@ -844,7 +928,7 @@ export default function MedicationScreen() {
                 onPress={() => setShowStartDatePicker(true)}
               >
                 <View style={styles.dateTimeWrapper}>
-                  <IconSymbol name="calendar" size={20} color="#1971c2" />
+                  <MaterialCommunityIcons name="calendar-start" size={20} color="#1971c2" />
                   <Text style={styles.dateTimeText}>
                     {newMed.start_date || 'Select Start Date'}
                   </Text>
@@ -864,7 +948,7 @@ export default function MedicationScreen() {
                 onPress={() => setShowEndDatePicker(true)}
               >
                 <View style={styles.dateTimeWrapper}>
-                  <IconSymbol name="calendar" size={20} color="#1971c2" />
+                  <MaterialCommunityIcons name="calendar-end" size={20} color="#1971c2" />
                   <Text style={styles.dateTimeText}>
                     {newMed.end_date || 'Select End Date'}
                   </Text>
@@ -884,12 +968,14 @@ export default function MedicationScreen() {
                   onPress={() => setModalVisible(false)}
                   style={styles.cancelButton}
                 >
+                  <Ionicons name="close-circle" size={18} color="#74c0fc" style={{marginRight: 4}} />
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={addMedication}
                   style={styles.saveButton}
                 >
+                  <Ionicons name="save" size={18} color="#fff" style={{marginRight: 4}} />
                   <Text style={styles.saveButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
@@ -902,13 +988,19 @@ export default function MedicationScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Medical History</Text>
+                <View style={styles.modalTitleContainer}>
+                  <MaterialIcons name="history-edu" size={24} color="#1971c2" style={styles.modalIcon} />
+                  <Text style={styles.modalTitle}>Add Medical History</Text>
+                </View>
                 <TouchableOpacity onPress={() => setHistoryModalVisible(false)}>
-                  <IconSymbol name="xmark" size={20} color="#adb5bd" />
+                  <Ionicons name="close" size={22} color="#adb5bd" />
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.inputLabel}>Type *</Text>
+              <Text style={styles.inputLabel}>
+                <MaterialIcons name="category" size={18} color="#74c0fc" style={{marginRight: 4}} />
+                Type *
+              </Text>
               <ScrollView style={styles.typeSelector} horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.typeGrid}>
                   {historyTypes.map((type) => (
@@ -920,6 +1012,7 @@ export default function MedicationScreen() {
                       ]}
                       onPress={() => setNewHistory({ ...newHistory, type })}
                     >
+                      {newHistory.type === type && getHistoryTypeIcon(type)}
                       <Text style={[
                         styles.typeOptionText,
                         newHistory.type === type && styles.typeOptionTextSelected
@@ -931,37 +1024,52 @@ export default function MedicationScreen() {
                 </View>
               </ScrollView>
 
-              <Text style={styles.inputLabel}>Title *</Text>
-              <TextInput
-                placeholder="Enter title"
-                value={newHistory.title}
-                onChangeText={(text) =>
-                  setNewHistory({ ...newHistory, title: text })
-                }
-                style={styles.input}
-                placeholderTextColor="#74c0fc"
-              />
+              <Text style={styles.inputLabel}>
+                <MaterialIcons name="title" size={18} color="#74c0fc" style={{marginRight: 4}} />
+                Title *
+              </Text>
+              <View style={styles.inputContainer}>
+                <MaterialIcons name="short-text" size={20} color="#1971c2" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Enter title"
+                  value={newHistory.title}
+                  onChangeText={(text) =>
+                    setNewHistory({ ...newHistory, title: text })
+                  }
+                  style={styles.input}
+                  placeholderTextColor="#74c0fc"
+                />
+              </View>
 
-              <Text style={styles.inputLabel}>Description (optional)</Text>
-              <TextInput
-                placeholder="Enter description"
-                value={newHistory.description}
-                onChangeText={(text) =>
-                  setNewHistory({ ...newHistory, description: text })
-                }
-                style={[styles.input, styles.textArea]}
-                multiline
-                numberOfLines={3}
-                placeholderTextColor="#74c0fc"
-              />
+              <Text style={styles.inputLabel}>
+                <MaterialCommunityIcons name="text-box" size={18} color="#74c0fc" style={{marginRight: 4}} />
+                Description (optional)
+              </Text>
+              <View style={styles.inputContainer}>
+                <MaterialCommunityIcons name="text" size={20} color="#1971c2" style={[styles.inputIcon, {alignSelf: 'flex-start', marginTop: 12}]} />
+                <TextInput
+                  placeholder="Enter description"
+                  value={newHistory.description}
+                  onChangeText={(text) =>
+                    setNewHistory({ ...newHistory, description: text })
+                  }
+                  style={[styles.input, styles.textArea]}
+                  multiline
+                  numberOfLines={3}
+                  placeholderTextColor="#74c0fc"
+                />
+              </View>
 
-              <Text style={styles.inputLabel}>Date *</Text>
+              <Text style={styles.inputLabel}>
+                <MaterialIcons name="event" size={18} color="#74c0fc" style={{marginRight: 4}} />
+                Date *
+              </Text>
               <TouchableOpacity
                 style={styles.dateTimeButton}
                 onPress={() => setShowHistoryDatePicker(true)}
               >
                 <View style={styles.dateTimeWrapper}>
-                  <IconSymbol name="calendar" size={20} color="#1971c2" />
+                  <Ionicons name="calendar" size={20} color="#1971c2" />
                   <Text style={styles.dateTimeText}>
                     {newHistory.date_recorded || 'Select Date'}
                   </Text>
@@ -981,20 +1089,22 @@ export default function MedicationScreen() {
                   onPress={() => setHistoryModalVisible(false)}
                   style={styles.cancelButton}
                 >
+                  <Ionicons name="close-circle" size={18} color="#74c0fc" style={{marginRight: 4}} />
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={addMedicalHistory}
                   style={styles.saveButton}
                 >
+                  <Ionicons name="save" size={18} color="#fff" style={{marginRight: 4}} />
                   <Text style={styles.saveButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
+        
         {/* Medicine Effects */}
-      
         <TouchableOpacity
             style={[styles.card, styles.medicineCard]}
             onPress={() => navigation.navigate('medicine/medicineSideEffects')}
@@ -1006,14 +1116,14 @@ export default function MedicationScreen() {
               style={styles.medicineGradient}
             >
               <View style={styles.medicineContent}>
-                  <View>
+                <View>
                   <Text style={styles.medicineTitle}>Learn About Drug Interactions</Text>
                   <Text style={styles.medicineDescription}>
                     Understand potential medication interactions and side effects.
                   </Text>
-                  </View>
+                </View>
                 <View style={styles.medicineIconContainer}>
-                  <IconSymbol name="bubble.right.fill" size={28} color="#ffffff" />
+                  <MaterialCommunityIcons name="pill" size={28} color="#ffffff" />
                 </View>
               </View>
             </LinearGradient>
@@ -1030,17 +1140,17 @@ export default function MedicationScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.medicineGradient}
             >
-                <View style={styles.medicineContent}>
-                  <View>
+              <View style={styles.medicineContent}>
+                <View>
                   <Text style={styles.medicineTitle}>Verify Medication Compatibility</Text>
                   <Text style={styles.medicineDescription}>
-                  Identify potential conflicts between your prescribed medications.
+                    Identify potential conflicts between your prescribed medications.
                   </Text>
-                  </View>
+                </View>
                 <View style={styles.medicineIconContainer}>
-                  <IconSymbol name="bubble.right.fill" size={28} color="#ffffff" />
+                  <MaterialCommunityIcons name="clipboard-alert" size={28} color="#ffffff" />
                 </View>
-                </View>
+              </View>
             </LinearGradient>
           </TouchableOpacity>
      
@@ -1049,422 +1159,3 @@ export default function MedicationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionButton: {
-    backgroundColor: '#e7f5ff',
-    padding: 8,
-    marginLeft: 8,
-    borderRadius: 8,
-  },
-  headerGradient: {
-    paddingBottom: 20,
-  },
-  headerContainer: {
-    paddingTop: 16,
-    paddingHorizontal: 20,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1c7ed6',
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: '#1971c2',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#e7f5ff',
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#4dabf7',
-    marginTop: 4,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 80,
-  },
-  sectionContainer: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1971c2',
-    marginLeft: 8,
-  },
-  addButton: {
-    backgroundColor: '#339af0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-  },
-  addButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  medicationCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#1971c2',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#e7f5ff',
-  },
-  medicationTime: {
-    backgroundColor: '#e7f5ff',
-    padding: 12,
-    borderRadius: 12,
-    marginRight: 16,
-    alignItems: 'center',
-    minWidth: 80,
-  },
-  medicationTimeOverdue: {
-    backgroundColor: '#fff5f5',
-    borderWidth: 1,
-    borderColor: '#ffc9c9',
-  },
-  timeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1971c2',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  timeTextOverdue: {
-    color: '#fa5252',
-  },
-  medicationDetails: {
-    flex: 1,
-  },
-  medicationName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1971c2',
-  },
-  medicationDosage: {
-    fontSize: 14,
-    color: '#74c0fc',
-    marginTop: 4,
-  },
-  repeatPatternText: {
-    color: '#228be6',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  notesText: {
-    color: '#adb5bd',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  checkButton: {
-    backgroundColor: '#339af0',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#1971c2',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  emptyState: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 32,
-    alignItems: 'center',
-    shadowColor: '#1971c2',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#e7f5ff',
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: '#1971c2',
-    fontWeight: '500',
-    marginTop: 12,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#74c0fc',
-    marginTop: 4,
-  },
-  historyCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#1971c2',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e7f5ff',
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  historyTypeContainer: {
-    flex: 1,
-  },
-  historyTypeBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  historyTypeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  historyDate: {
-    fontSize: 12,
-    color: '#74c0fc',
-    fontWeight: '500',
-  },
-  deleteButton: {
-    padding: 8,
-    color: '#339af0',
-    backgroundColor: '#e7f5ff',
-    borderRadius: 8,
-  },
-  historyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1971c2',
-    marginBottom: 8,
-  },
-  historyDescription: {
-    fontSize: 14,
-    color: '#495057',
-    lineHeight: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(25, 113, 194, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1971c2',
-  },
-  input: {
-    backgroundColor: '#e7f5ff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 16,
-    fontSize: 16,
-    color: '#1971c2',
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: '#74c0fc',
-    marginBottom: 6,
-    fontWeight: '500',
-  },
-  typeSelector: {
-    marginBottom: 16,
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-  },
-  typeOption: {
-    backgroundColor: '#e7f5ff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  typeOptionSelected: {
-    backgroundColor: '#339af0',
-  },
-  typeOptionText: {
-    fontSize: 14,
-    color: '#1971c2',
-    fontWeight: '500',
-  },
-  typeOptionTextSelected: {
-    color: '#ffffff',
-  },
-  dateTimeButton: {
-    backgroundColor: '#e7f5ff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  dateTimeWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dateTimeText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#1971c2',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  cancelButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e7f5ff',
-  },
-  cancelButtonText: {
-    color: '#74c0fc',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  saveButton: {
-    backgroundColor: '#339af0',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 12,
-    shadowColor: '#1971c2',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  medicineCard: {
-    padding: 0,
-    overflow: 'hidden',
-  },
-  medicineGradient: {
-    borderRadius: 16,
-  },
-  medicineContent: {
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  medicineTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  medicineDescription: {
-    fontSize: 14,
-    color: '#e7f5ff',
-    maxWidth: '90%',
-  },
-  medicineIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Styles for repeat pattern selection
-  repeatPatternContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
-    justifyContent: 'space-between',
-  },
-  repeatPatternOption: {
-    backgroundColor: '#e7f5ff',
-    paddingVertical: 10,
-    paddingHorizontal: 0,
-    marginBottom: 8,
-    borderRadius: 12,
-    width: '48%',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d0ebff',
-  },
-  repeatPatternSelected: {
-    backgroundColor: '#339af0',
-    borderColor: '#228be6',
-  },
-  repeatPatternText: {
-    fontSize: 14,
-    color: '#1971c2',
-    fontWeight: '500',
-  },
-  repeatPatternTextSelected: {
-    color: '#ffffff',
-  },
-});
