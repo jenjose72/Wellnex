@@ -14,10 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { supabase } from '@/lib/supabase';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format, parse } from 'date-fns';
+import { format, parse, addDays, addWeeks, addMonths, isBefore, parseISO } from 'date-fns';
 import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+
 export default function MedicationScreen() {
   const navigation = useNavigation();
   const [medications, setMedications] = useState([]);
@@ -98,125 +99,375 @@ export default function MedicationScreen() {
     else setMedicalHistory(data || []);
   };
 
-  const addMedication = async () => {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      Alert.alert('Authentication Error', 'User not logged in.');
-      return;
+  // Fixed function to format time from 12-hour to 24-hour format
+  const formatTimeFor24Hour = (timeStr) => {
+    if (!timeStr) return null;
+    
+    try {
+      // Handle "hh:mm a" format (like "08:30 AM")
+      if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) {
+        const timeParts = timeStr.match(/(\d+):(\d+)\s*(am|pm|AM|PM)/i);
+        if (timeParts) {
+          let hours = parseInt(timeParts[1], 10);
+          const minutes = parseInt(timeParts[2], 10);
+          const period = timeParts[3].toLowerCase();
+          
+          // Convert to 24-hour format
+          if (period === 'pm' && hours < 12) hours += 12;
+          if (period === 'am' && hours === 12) hours = 0;
+          
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+      }
+      
+      // If already in HH:MM format, validate and return
+      const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+      if (timeRegex.test(timeStr)) {
+        const [hours, minutes] = timeStr.split(':').map(num => parseInt(num, 10));
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      }
+      
+      // If we can't parse it, return a default time
+      console.warn(`Could not parse time format: ${timeStr}, using default 08:00`);
+      return "08:00";
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return "08:00"; // Safe default
     }
+  };
 
-    const medicationWithUser = {
-      ...newMed,
-      user_id: user.id,
-    };
+  // Fixed function to calculate the next scheduled time
+  const calculateNextScheduledTime = (timeStr, repeatPattern) => {
+    if (!timeStr || !repeatPattern) return null;
+    
+    try {
+      const now = new Date();
+      const timeFormatted = formatTimeFor24Hour(timeStr);
+      
+      if (!timeFormatted) return null;
+      
+      const [hoursStr, minutesStr] = timeFormatted.split(':');
+      const hours = parseInt(hoursStr, 10);
+      const minutes = parseInt(minutesStr, 10);
+      
+      // Validate hours and minutes to avoid RangeError
+      if (isNaN(hours) || hours < 0 || hours > 23 || isNaN(minutes) || minutes < 0 || minutes > 59) {
+        console.warn(`Invalid time components: hours=${hours}, minutes=${minutes}`);
+        return null;
+      }
+      
+      // Create a date object for today with the medication time
+      let nextDate = new Date();
+      nextDate.setHours(hours, minutes, 0, 0);
+      
+      // If the time has already passed today and it's a recurring med, schedule for next occurrence
+      if (isBefore(nextDate, now) && repeatPattern !== 'As needed') {
+        switch (repeatPattern) {
+          case 'Daily':
+            nextDate = addDays(nextDate, 1);
+            break;
+          case 'Weekly':
+            nextDate = addDays(nextDate, 7);
+            break;
+          case 'Monthly':
+            nextDate = addMonths(nextDate, 1);
+            break;
+        }
+      }
+      
+      return nextDate;
+    } catch (error) {
+      console.error('Error calculating next scheduled time:', error);
+      // Return a safe default time - tomorrow at 8 AM
+      const tomorrow = addDays(new Date(), 1);
+      tomorrow.setHours(8, 0, 0, 0);
+      return tomorrow;
+    }
+  };
 
-    const { data, error } = await supabase
-      .from('medication_reminders')
-      .insert([medicationWithUser]);
+  // Fixed addMedication function
+  const addMedication = async () => {
+    try {
+      const { data, error: userError } = await supabase.auth.getUser();
 
-    if (error) {
-      console.error(error);
-      Alert.alert('Error adding medication');
-    } else {
-      setModalVisible(false);
-      setNewMed({
-        medicine_name: '',
-        dosage: '',
-        time: '',
-        start_date: '',
-        end_date: '',
-        repeat_pattern: '',
-        notes: '',
-        user_id: '',
-      });
-      fetchMedications();
-      scheduleMedicationNotification(newMed);
+      if (userError || !data.user) {
+        Alert.alert('Authentication Error', 'User not logged in.');
+        return;
+      }
+
+      // Validate required fields
+      if (!newMed.medicine_name || !newMed.time || !newMed.repeat_pattern) {
+        Alert.alert('Validation Error', 'Please fill in required fields (Name, Time, and Repeat Pattern).');
+        return;
+      }
+
+      // Format time safely and handle potential errors
+      let timeFormatted;
+      let nextScheduled;
+      
+      try {
+        timeFormatted = formatTimeFor24Hour(newMed.time);
+        nextScheduled = calculateNextScheduledTime(newMed.time, newMed.repeat_pattern);
+      } catch (timeError) {
+        console.error('Error processing time:', timeError);
+        // Use safe defaults
+        timeFormatted = "08:00";
+        const tomorrow = addDays(new Date(), 1);
+        tomorrow.setHours(8, 0, 0, 0);
+        nextScheduled = tomorrow;
+      }
+      
+      // Create a clean object without any undefined or empty string values
+      const medicationData = {
+        medicine_name: newMed.medicine_name,
+        dosage: newMed.dosage || null,
+        time: newMed.time,
+        repeat_pattern: newMed.repeat_pattern,
+        notes: newMed.notes || null,
+        start_date: newMed.start_date || null,
+        end_date: newMed.end_date || null,
+        user_id: data.user.id,
+        time_numeric: timeFormatted,
+        next_scheduled: nextScheduled ? nextScheduled.toISOString() : null,
+      };
+      
+      console.log('Sending medication data:', medicationData);
+      
+      const { error } = await supabase
+        .from('medication_reminders')
+        .insert([medicationData]);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        Alert.alert('Error', `Failed to add medication: ${error.message}`);
+      } else {
+        Alert.alert('Success', 'Medication added successfully!');
+        setModalVisible(false);
+        setNewMed({
+          medicine_name: '',
+          dosage: '',
+          time: '',
+          start_date: '',
+          end_date: '',
+          repeat_pattern: '',
+          notes: '',
+          user_id: '',
+        });
+        await fetchMedications();
+        try {
+          await scheduleMedicationNotification(newMed);
+        } catch (notificationError) {
+          console.error('Failed to schedule notification:', notificationError);
+        }
+      }
+    } catch (e) {
+      console.error('Unexpected error:', e);
+      Alert.alert('Error', 'An unexpected error occurred while adding medication.');
     }
   };
 
   const addMedicalHistory = async () => {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    try {
+      const { data, error: userError } = await supabase.auth.getUser();
 
-    if (userError || !user) {
-      Alert.alert('Authentication Error', 'User not logged in.');
-      return;
-    }
+      if (userError || !data.user) {
+        Alert.alert('Authentication Error', 'User not logged in.');
+        return;
+      }
 
-    if (!newHistory.type || !newHistory.title || !newHistory.date_recorded) {
-      Alert.alert('Validation Error', 'Please fill in required fields (Type, Title, and Date).');
-      return;
-    }
+      if (!newHistory.type || !newHistory.title || !newHistory.date_recorded) {
+        Alert.alert('Validation Error', 'Please fill in required fields (Type, Title, and Date).');
+        return;
+      }
 
-    const historyWithUser = {
-      ...newHistory,
-      user_id: user.id,
-    };
+      const historyWithUser = {
+        ...newHistory,
+        user_id: data.user.id,
+      };
 
-    const { data, error } = await supabase
-      .from('medical_history')
-      .insert([historyWithUser]);
+      const { error } = await supabase
+        .from('medical_history')
+        .insert([historyWithUser]);
 
-    if (error) {
-      console.error('Error adding medical history:', error);
-      Alert.alert('Error', 'Failed to add medical history record.');
-    } else {
-      setHistoryModalVisible(false);
-      setNewHistory({
-        type: '',
-        title: '',
-        description: '',
-        date_recorded: '',
-        user_id: '',
-      });
-      fetchMedicalHistory();
-      Alert.alert('Success', 'Medical history record added successfully.');
+      if (error) {
+        console.error('Error adding medical history:', error);
+        Alert.alert('Error', 'Failed to add medical history record.');
+      } else {
+        setHistoryModalVisible(false);
+        setNewHistory({
+          type: '',
+          title: '',
+          description: '',
+          date_recorded: '',
+          user_id: '',
+        });
+        fetchMedicalHistory();
+        Alert.alert('Success', 'Medical history record added successfully.');
+      }
+    } catch (e) {
+      console.error('Unexpected error adding medical history:', e);
+      Alert.alert('Error', 'An unexpected error occurred while adding medical history.');
     }
   };
 
-  const deleteMedicalHistory = async (historyId) => {
-    Alert.alert(
-      'Delete Record',
-      'Are you sure you want to delete this medical history record?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase
-              .from('medical_history')
-              .delete()
-              .eq('id', historyId);
+  // Enhanced deleteMedicalHistory function with better error handling
+  const deleteMedicalHistory = async (historyId, historyTitle) => {
+    try {
+      Alert.alert(
+        'Delete Medical Record',
+        `Are you sure you want to delete "${historyTitle}"? This action cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Show loading indicator or disable UI if needed
+                
+                const { error } = await supabase
+                  .from('medical_history')
+                  .delete()
+                  .eq('id', historyId);
 
-            if (error) {
-              console.error('Error deleting medical history:', error);
-              Alert.alert('Error', 'Failed to delete medical history record.');
-            } else {
-              fetchMedicalHistory();
-            }
+                if (error) {
+                  console.error('Error deleting medical history:', error);
+                  Alert.alert('Error', `Failed to delete record: ${error.message}`);
+                } else {
+                  // Success - update the UI
+                  await fetchMedicalHistory();
+                  Alert.alert('Success', 'Medical record deleted successfully');
+                }
+              } catch (deleteError) {
+                console.error('Unexpected error during deletion:', deleteError);
+                Alert.alert('Error', 'An unexpected error occurred while deleting the record.');
+              }
+            },
           },
-        },
-      ]
-    );
+        ],
+        { cancelable: true }
+      );
+    } catch (e) {
+      console.error('Error in delete dialog:', e);
+    }
   };
 
+  // Fixed markMedicationAsTaken function
+  const markMedicationAsTaken = async (med) => {
+    try {
+      // Calculate when the next dose should be scheduled based on repeat pattern
+      let nextScheduled = null;
+      
+      if (med.repeat_pattern && med.repeat_pattern !== 'As needed') {
+        try {
+          // Get current time as the base for the next scheduled time
+          const now = new Date();
+          
+          // Extract hours and minutes from the time_numeric field if available, otherwise from time
+          let hours = 8; // Default to 8 AM if time format can't be parsed
+          let minutes = 0;
+          
+          if (med.time_numeric) {
+            const timeParts = med.time_numeric.split(':');
+            if (timeParts.length === 2) {
+              hours = parseInt(timeParts[0], 10);
+              minutes = parseInt(timeParts[1], 10);
+            }
+          } else if (med.time) {
+            const formattedTime = formatTimeFor24Hour(med.time);
+            if (formattedTime) {
+              const timeParts = formattedTime.split(':');
+              if (timeParts.length === 2) {
+                hours = parseInt(timeParts[0], 10);
+                minutes = parseInt(timeParts[1], 10);
+              }
+            }
+          }
+          
+          // Validate hours and minutes
+          if (isNaN(hours) || hours < 0 || hours > 23 || isNaN(minutes) || minutes < 0 || minutes > 59) {
+            throw new Error(`Invalid time components: hours=${hours}, minutes=${minutes}`);
+          }
+          
+          // Set base time for next dose to today with the same time
+          nextScheduled = new Date();
+          nextScheduled.setHours(hours, minutes, 0, 0);
+          
+          // Calculate next scheduled date based on repeat pattern
+          switch (med.repeat_pattern) {
+            case 'Daily':
+              // If it's already past the time today, schedule for tomorrow
+              if (isBefore(nextScheduled, now)) {
+                nextScheduled = addDays(nextScheduled, 1);
+              }
+              break;
+            case 'Weekly':
+              nextScheduled = addDays(nextScheduled, 7);
+              break;
+            case 'Monthly':
+              nextScheduled = addMonths(nextScheduled, 1);
+              break;
+          }
+        } catch (timeError) {
+          console.error('Error processing medication time:', timeError);
+          // If there's an error with the time, set next schedule to tomorrow at 8 AM as a fallback
+          nextScheduled = addDays(new Date(), 1);
+          nextScheduled.setHours(8, 0, 0, 0);
+        }
+      }
+      
+      // Update medication with new next_scheduled date and last_taken time
+      const { error } = await supabase
+        .from('medication_reminders')
+        .update({ 
+          next_scheduled: nextScheduled ? nextScheduled.toISOString() : null,
+          last_taken: new Date().toISOString()
+        })
+        .eq('id', med.id);
+      
+      if (error) {
+        console.error('Error updating medication:', error);
+        Alert.alert('Error', 'Failed to update medication status');
+      } else {
+        fetchMedications();
+        Alert.alert('Success', `${med.medicine_name} marked as taken! Next dose scheduled.`);
+      }
+    } catch (e) {
+      console.error('Error in markMedicationAsTaken:', e);
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+
+  // Fixed scheduleMedicationNotification function to handle errors better
   const scheduleMedicationNotification = async (med) => {
     try {
-      const medTime = parse(med.time, 'hh:mm a', new Date());
+      if (!med.time) {
+        console.warn('No time specified for notification');
+        return;
+      }
+      
+      let medTime;
+      try {
+        // Try to parse the time
+        medTime = parse(med.time, 'hh:mm a', new Date());
+        
+        // If the time is invalid, create a default time
+        if (isNaN(medTime.getTime())) throw new Error('Invalid time');
+      } catch (parseError) {
+        console.warn('Error parsing time for notification:', parseError);
+        // Default to 8 AM tomorrow
+        medTime = new Date();
+        medTime.setHours(8, 0, 0, 0);
+        medTime = addDays(medTime, 1);
+      }
+
       const now = new Date();
 
       if (medTime < now) {
         medTime.setDate(medTime.getDate() + 1);
       }
 
-      await Notifications.scheduleNotificationAsync({
+      const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: `Time to take ${med.medicine_name}`,
           body: `Dosage: ${med.dosage || 'As prescribed'}`,
@@ -228,6 +479,8 @@ export default function MedicationScreen() {
           repeats: true,
         },
       });
+      
+      console.log(`Scheduled notification with ID: ${notificationId}`);
     } catch (error) {
       console.error('Error scheduling notification:', error);
     }
@@ -327,26 +580,124 @@ export default function MedicationScreen() {
               <Text style={styles.emptyStateSubtext}>Add your medications to get reminders</Text>
             </View>
           ) : (
-            medications.map((med) => (
-              <View key={med.id} style={styles.medicationCard}>
-                <View style={styles.medicationTime}>
-                  <IconSymbol name="clock" size={18} color="#1971c2" />
-                  <Text style={styles.timeText}>{med.time}</Text>
-                </View>
-                <View style={styles.medicationDetails}>
-                  <Text style={styles.medicationName}>{med.medicine_name}</Text>
-                  <Text style={styles.medicationDosage}>{med.dosage}</Text>
-                  {med.notes ? (
-                    <Text style={styles.notesText}>
-                      Notes: {med.notes}
+            medications.map((med) => {
+              // Format the next scheduled date for display
+              let nextDoseText = 'Not scheduled';
+              let isOverdue = false;
+              
+              if (med.next_scheduled) {
+                try {
+                  const nextDate = parseISO(med.next_scheduled);
+                  const now = new Date();
+                  isOverdue = isBefore(nextDate, now);
+                  
+                  // Show date only if it's not today
+                  const isToday = nextDate.getDate() === now.getDate() && 
+                                  nextDate.getMonth() === now.getMonth() &&
+                                  nextDate.getFullYear() === now.getFullYear();
+                                  
+                  if (isToday) {
+                    nextDoseText = `Today at ${med.time}`;
+                  } else {
+                    // Format the date to a user-friendly string
+                    const day = nextDate.getDate();
+                    const month = nextDate.toLocaleString('default', { month: 'short' });
+                    nextDoseText = `${day} ${month} at ${med.time}`;
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing next scheduled date:', parseError);
+                  nextDoseText = 'Schedule error';
+                }
+              } else if (med.repeat_pattern === 'As needed') {
+                nextDoseText = 'Take as needed';
+              }
+              
+              return (
+                <View key={med.id} style={styles.medicationCard}>
+                  <View style={[
+                    styles.medicationTime,
+                    isOverdue ? styles.medicationTimeOverdue : null
+                  ]}>
+                    <IconSymbol 
+                      name={isOverdue ? "exclamationmark.circle" : "clock"} 
+                      size={18} 
+                      color={isOverdue ? "#ff6b6b" : "#1971c2"} 
+                    />
+                    <Text style={[
+                      styles.timeText, 
+                      isOverdue ? styles.timeTextOverdue : null
+                    ]}>
+                      {nextDoseText}
                     </Text>
-                  ) : null}
+                  </View>
+                  <View style={styles.medicationDetails}>
+                    <Text style={styles.medicationName}>{med.medicine_name}</Text>
+                    <Text style={styles.medicationDosage}>{med.dosage}</Text>
+                    {med.repeat_pattern ? (
+                      <Text style={styles.repeatPatternText}>
+                        Repeat: {med.repeat_pattern}
+                      </Text>
+                    ) : null}
+                    {med.notes ? (
+                      <Text style={styles.notesText}>
+                        Notes: {med.notes}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity 
+                      style={styles.actionButton}
+                      onPress={() => {
+                        Alert.alert(
+                          "Delete Medication",
+                          `Are you sure you want to delete ${med.medicine_name}?`,
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            { 
+                              text: "Delete", 
+                              style: "destructive",
+                              onPress: async () => {
+                                const { error } = await supabase
+                                  .from('medication_reminders')
+                                  .delete()
+                                  .eq('id', med.id);
+                                
+                                if (error) {
+                                  console.error(error);
+                                  Alert.alert('Error', 'Failed to delete medication');
+                                } else {
+                                  fetchMedications();
+                                }
+                              }
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <IconSymbol size={16} name="trash" color="#ff6b6b" />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.checkButton]}
+                      onPress={() => {
+                        Alert.alert(
+                          "Mark as Taken",
+                          `Mark ${med.medicine_name} as taken?`,
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            { 
+                              text: "Confirm", 
+                              onPress: () => markMedicationAsTaken(med)
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <IconSymbol size={16} name="checkmark" color="#fff" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <TouchableOpacity style={styles.checkButton}>
-                  <IconSymbol size={16} name="checkmark" color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
 
@@ -389,7 +740,7 @@ export default function MedicationScreen() {
                   </View>
                   <TouchableOpacity 
                     style={styles.deleteButton}
-                    onPress={() => deleteMedicalHistory(history.id)}
+                    onPress={() => deleteMedicalHistory(history.id, history.title)}
                   >
                     <IconSymbol size={16} name="trash" color="#339af0" />
                   </TouchableOpacity>
@@ -432,15 +783,31 @@ export default function MedicationScreen() {
                 style={styles.input}
                 placeholderTextColor="#74c0fc"
               />
-              <TextInput
-                placeholder="Repeat Pattern (e.g., daily)"
-                value={newMed.repeat_pattern}
-                onChangeText={(text) =>
-                  setNewMed({ ...newMed, repeat_pattern: text })
-                }
-                style={styles.input}
-                placeholderTextColor="#74c0fc"
-              />
+              
+              {/* Repeat Pattern Selection */}
+              <Text style={styles.inputLabel}>Repeat Pattern</Text>
+              <View style={styles.repeatPatternContainer}>
+                {['Daily', 'Weekly', 'Monthly', 'As needed'].map((pattern) => (
+                  <TouchableOpacity
+                    key={pattern}
+                    style={[
+                      styles.repeatPatternOption,
+                      newMed.repeat_pattern === pattern && styles.repeatPatternSelected
+                    ]}
+                    onPress={() => setNewMed({ ...newMed, repeat_pattern: pattern })}
+                  >
+                    <Text
+                      style={[
+                        styles.repeatPatternText,
+                        newMed.repeat_pattern === pattern && styles.repeatPatternTextSelected
+                      ]}
+                    >
+                      {pattern}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <TextInput
                 placeholder="Notes (optional)"
                 value={newMed.notes}
@@ -655,7 +1022,7 @@ export default function MedicationScreen() {
         {/* Medicine Effects */}
         <TouchableOpacity
             style={[styles.card, styles.medicineCard]}
-            onPress={() => navigation.navigate('medicine/medicineConflicts')}
+            onPress={() => navigation.navigate('medicine/MedicineConflicts')}
           >
             <LinearGradient
               colors={['#93c9f5', '#4faeff']}
@@ -686,6 +1053,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    backgroundColor: '#e7f5ff',
+    padding: 8,
+    marginLeft: 8,
+    borderRadius: 8,
   },
   headerGradient: {
     paddingBottom: 20,
@@ -776,11 +1153,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 80,
   },
+  medicationTimeOverdue: {
+    backgroundColor: '#fff5f5',
+    borderWidth: 1,
+    borderColor: '#ffc9c9',
+  },
   timeText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1971c2',
     marginTop: 4,
+    textAlign: 'center',
+  },
+  timeTextOverdue: {
+    color: '#fa5252',
   },
   medicationDetails: {
     flex: 1,
@@ -793,6 +1179,11 @@ const styles = StyleSheet.create({
   medicationDosage: {
     fontSize: 14,
     color: '#74c0fc',
+    marginTop: 4,
+  },
+  repeatPatternText: {
+    color: '#228be6',
+    fontSize: 13,
     marginTop: 4,
   },
   notesText: {
@@ -878,6 +1269,9 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: 8,
+    color: '#339af0',
+    backgroundColor: '#e7f5ff',
+    borderRadius: 8,
   },
   historyTitle: {
     fontSize: 16,
@@ -1043,4 +1437,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-}); 
+  // Styles for repeat pattern selection
+  repeatPatternContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+    justifyContent: 'space-between',
+  },
+  repeatPatternOption: {
+    backgroundColor: '#e7f5ff',
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    marginBottom: 8,
+    borderRadius: 12,
+    width: '48%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d0ebff',
+  },
+  repeatPatternSelected: {
+    backgroundColor: '#339af0',
+    borderColor: '#228be6',
+  },
+  repeatPatternText: {
+    fontSize: 14,
+    color: '#1971c2',
+    fontWeight: '500',
+  },
+  repeatPatternTextSelected: {
+    color: '#ffffff',
+  },
+});

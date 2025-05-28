@@ -2,7 +2,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
@@ -31,6 +31,7 @@ export default function NearbyScreen() {
   const [emergencyPlaces, setEmergencyPlaces] = useState<EmergencyPlace[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const maxRetries = 3;
 
   // Generate dynamic HTML with current location
@@ -95,6 +96,13 @@ export default function NearbyScreen() {
       border: 2px solid white;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
+    .marker-selected {
+      width: 18px;
+      height: 18px;
+      border: 3px solid white;
+      transform: scale(1.2);
+      z-index: 1000 !important;
+    }
     .leaflet-popup-content-wrapper {
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -109,7 +117,7 @@ export default function NearbyScreen() {
   <div id="map"></div>
   <script>
     let map, userMarker;
-    const emergencyMarkers = [];
+    const emergencyMarkers = {};
     
     try {
       // Initialize the map with current location
@@ -204,10 +212,10 @@ export default function NearbyScreen() {
       window.addEmergencyPlaces = function(places) {
         try {
           // Clear existing markers
-          emergencyMarkers.forEach(marker => {
-            map.removeLayer(marker);
-          });
-          emergencyMarkers.length = 0;
+          for (const id in emergencyMarkers) {
+            map.removeLayer(emergencyMarkers[id]);
+            delete emergencyMarkers[id];
+          }
           
           if (!places || places.length === 0) {
             console.log('No emergency places to add');
@@ -215,7 +223,7 @@ export default function NearbyScreen() {
           }
           
           // Add new markers
-          places.forEach(place => {
+          places.forEach((place, index) => {
             let icon, emoji;
             switch(place.type) {
               case 'hospital': 
@@ -243,6 +251,8 @@ export default function NearbyScreen() {
             const userLng = userMarker.getLatLng().lng;
             const distance = calculateDistance(userLat, userLng, place.lat, place.lng);
             
+            const placeId = 'place_' + index;
+            
             const marker = L.marker([place.lat, place.lng], {icon})
               .addTo(map)
               .bindPopup(
@@ -250,13 +260,50 @@ export default function NearbyScreen() {
                 "<small>Distance: " + distance.toFixed(1) + " km</small><br>" +
                 "<small>Type: " + place.type.replace('_', ' ').replace(/\\b\\w/g, l => l.toUpperCase()) + "</small>"
               );
+              
+            marker.on('click', function() {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'markerSelected',
+                  id: placeId
+                }));
+              }
+            });
             
-            emergencyMarkers.push(marker);
+            emergencyMarkers[placeId] = marker;
           });
           
           console.log('Added', places.length, 'emergency places to map');
         } catch (error) {
           console.error('Error adding emergency places:', error);
+        }
+      };
+      
+      // Function to highlight a marker
+      window.highlightMarker = function(id) {
+        try {
+          // Reset all markers first
+          for (const key in emergencyMarkers) {
+            const marker = emergencyMarkers[key];
+            const icon = marker.getIcon();
+            icon.options.className = icon.options.className.replace(' marker-selected', '');
+            marker.setIcon(L.divIcon(icon.options));
+          }
+          
+          // Highlight the selected marker
+          if (id && emergencyMarkers[id]) {
+            const marker = emergencyMarkers[id];
+            marker.openPopup();
+            map.setView(marker.getLatLng(), 15);
+            
+            const icon = marker.getIcon();
+            if (!icon.options.className.includes('marker-selected')) {
+              icon.options.className += ' marker-selected';
+              marker.setIcon(L.divIcon(icon.options));
+            }
+          }
+        } catch (error) {
+          console.error('Error highlighting marker:', error);
         }
       };
       
@@ -286,11 +333,9 @@ export default function NearbyScreen() {
   const findNearbyEmergencyPlaces = useCallback(async (lat: number, lng: number) => {
     try {
       setIsLoading(true);
-      const radius = 3000; // 3km radius for better performance
+      const radius = 30000; // 3km radius for better performance
       const categories = [
         { type: 'hospital', query: 'hospital', amenity: 'hospital' },
-        { type: 'police', query: 'police', amenity: 'police' },
-        { type: 'fire_station', query: 'fire_station', amenity: 'fire_station' },
         { type: 'pharmacy', query: 'pharmacy', amenity: 'pharmacy' }
       ];
       
@@ -543,11 +588,39 @@ export default function NearbyScreen() {
     }
   }, [emergencyPlaces, mapLoaded]);
 
+  // Handle marker selection and highlight on map
+  const handleSelectPlace = (index: number) => {
+    const placeId = `place_${index}`;
+    setSelectedPlaceId(placeId);
+    
+    if (webViewRef.current && mapLoaded) {
+      const script = `
+        try {
+          if (typeof window.highlightMarker === 'function') {
+            window.highlightMarker('${placeId}');
+          }
+        } catch(e) {
+          console.error('Highlight marker error:', e);
+        }
+      `;
+      webViewRef.current.injectJavaScript(script);
+    }
+  };
+
   const handleWebViewMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'mapReady') {
         setMapLoaded(true);
+      } else if (data.type === 'markerSelected') {
+        setSelectedPlaceId(data.id);
+        
+        // Extract the index from the ID (format: 'place_X')
+        const index = parseInt(data.id.split('_')[1], 10);
+        if (!isNaN(index) && index >= 0 && index < emergencyPlaces.length) {
+          // Scroll to the selected place in the list
+          // Implementation would depend on your FlatList ref
+        }
       }
     } catch (error) {
       console.error('WebView message error:', error);
@@ -562,15 +635,77 @@ export default function NearbyScreen() {
         lng: location.coords.longitude
       };
     }
-    // Fallback to NYC coordinates if location not available
+    // Fallback to coordinates
     return {
       lat: 8.5241,
       lng: 76.9366
-
     };
   };
 
   const initialCoords = getInitialCoords();
+
+  // Get an appropriate icon for the emergency place type
+  const getEmergencyTypeIcon = (type: string) => {
+    switch (type) {
+      case 'hospital':
+        return '🏥';
+      case 'police':
+        return '👮';
+      case 'fire_station':
+        return '🚒';
+      case 'pharmacy':
+        return '💊';
+      default:
+        return '📍';
+    }
+  };
+
+  // Get background color for each type
+  const getTypeBackgroundColor = (type: string) => {
+    switch (type) {
+      case 'hospital':
+        return '#ffebeb';
+      case 'police':
+        return '#eceaff';
+      case 'fire_station':
+        return '#fff5eb';
+      case 'pharmacy':
+        return '#ebffef';
+      default:
+        return '#e9ecef';
+    }
+  };
+
+  const renderEmergencyPlaceItem = ({ item, index }: { item: EmergencyPlace; index: number }) => {
+    const isSelected = selectedPlaceId === `place_${index}`;
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.placeCard, 
+          isSelected && styles.placeCardSelected,
+          { backgroundColor: getTypeBackgroundColor(item.type) }
+        ]}
+        onPress={() => handleSelectPlace(index)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.placeIconContainer}>
+          <Text style={styles.placeIcon}>{getEmergencyTypeIcon(item.type)}</Text>
+        </View>
+        <View style={styles.placeDetails}>
+          <Text style={styles.placeName}>{item.name}</Text>
+          <View style={styles.placeMetaContainer}>
+            <Text style={styles.placeDistance}>
+              {item.distance ? `${item.distance.toFixed(1)} km away` : 'Distance unknown'}
+            </Text>
+            <Text style={styles.placeType}>
+              {item.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
   
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -588,96 +723,132 @@ export default function NearbyScreen() {
         </TouchableOpacity>
       </View>
       
-      <View style={styles.mapContainer}>
-        {locationPermission === false ? (
-          <View style={styles.permissionContainer}>
-            <IconSymbol size={40} name="location.slash.fill" color="#999" />
-            <Text style={styles.permissionTitle}>Location Access Required</Text>
-            <Text style={styles.permissionText}>
-              We need your location to show nearby emergency services like hospitals, police stations, and pharmacies.
-            </Text>
-            <TouchableOpacity 
-              style={styles.permissionButton}
-              onPress={handleRequestLocation}
-            >
-              <Text style={styles.permissionButtonText}>Grant Location Access</Text>
-            </TouchableOpacity>
-          </View>
-        ) : isLoading && !location ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007aff" />
-            <Text style={styles.loadingText}>Getting your location...</Text>
-          </View>
-        ) : (
-          <>
-            <WebView
-              ref={webViewRef}
-              source={{ html: generateLeafletHTML(initialCoords.lat, initialCoords.lng) }}
-              style={styles.map}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              startInLoadingState={true}
-              onMessage={handleWebViewMessage}
-              renderLoading={() => (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#007aff" />
-                  <Text style={styles.loadingText}>Loading map...</Text>
+      {/* Split screen layout */}
+      <View style={styles.contentContainer}>
+        {/* Top half: Map */}
+        <View style={styles.mapContainer}>
+          {locationPermission === false ? (
+            <View style={styles.permissionContainer}>
+              <IconSymbol size={40} name="location.slash.fill" color="#999" />
+              <Text style={styles.permissionTitle}>Location Access Required</Text>
+              <Text style={styles.permissionText}>
+                We need your location to show nearby emergency services.
+              </Text>
+              <TouchableOpacity 
+                style={styles.permissionButton}
+                onPress={handleRequestLocation}
+              >
+                <Text style={styles.permissionButtonText}>Grant Location Access</Text>
+              </TouchableOpacity>
+            </View>
+          ) : isLoading && !location ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#007aff" />
+              <Text style={styles.loadingText}>Getting your location...</Text>
+            </View>
+          ) : (
+            <>
+              <WebView
+                ref={webViewRef}
+                source={{ html: generateLeafletHTML(initialCoords.lat, initialCoords.lng) }}
+                style={styles.map}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                startInLoadingState={true}
+                onMessage={handleWebViewMessage}
+                renderLoading={() => (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#007aff" />
+                    <Text style={styles.loadingText}>Loading map...</Text>
+                  </View>
+                )}
+                onError={(error) => console.error('WebView error:', error)}
+                onHttpError={(syntheticEvent) => {
+                  const { nativeEvent } = syntheticEvent;
+                  console.log('WebView HTTP error:', nativeEvent);
+                }}
+                allowsInlineMediaPlayback={true}
+                mediaPlaybackRequiresUserAction={false}
+                androidHardwareAccelerationDisabled={Platform.OS === 'android'}
+                originWhitelist={['*']}
+                mixedContentMode="compatibility"
+                onLoadEnd={() => {
+                  // Initial data injection after map loads
+                  setTimeout(() => {
+                    if (location) {
+                      const { latitude, longitude } = location.coords;
+                      const script = `
+                        (function() {
+                          try {
+                            if (typeof window.updateUserLocation === 'function') {
+                              window.updateUserLocation(${latitude}, ${longitude});
+                            }
+                            if (typeof window.addEmergencyPlaces === 'function' && ${JSON.stringify(emergencyPlaces)}.length > 0) {
+                              window.addEmergencyPlaces(${JSON.stringify(emergencyPlaces)});
+                            }
+                          } catch(e) {
+                            console.error('Initial data injection error:', e);
+                          }
+                        })();
+                      `;
+                      webViewRef.current?.injectJavaScript(script);
+                    }
+                  }, 1000);
+                }}
+              />
+              
+              {isLoading && (
+                <View style={styles.loadingOverlay}>
+                  <View style={styles.loadingCard}>
+                    <ActivityIndicator size="small" color="#007aff" />
+                    <Text style={styles.loadingOverlayText}>Loading emergency services...</Text>
+                  </View>
                 </View>
               )}
-              onError={(error) => console.error('WebView error:', error)}
-              onHttpError={(syntheticEvent) => {
-                const { nativeEvent } = syntheticEvent;
-                console.log('WebView HTTP error:', nativeEvent);
-              }}
-              allowsInlineMediaPlayback={true}
-              mediaPlaybackRequiresUserAction={false}
-              androidHardwareAccelerationDisabled={Platform.OS === 'android'}
-              originWhitelist={['*']}
-              mixedContentMode="compatibility"
-              onLoadEnd={() => {
-                // Initial data injection after map loads
-                setTimeout(() => {
-                  if (location) {
-                    const { latitude, longitude } = location.coords;
-                    const script = `
-                      (function() {
-                        try {
-                          if (typeof window.updateUserLocation === 'function') {
-                            window.updateUserLocation(${latitude}, ${longitude});
-                          }
-                          if (typeof window.addEmergencyPlaces === 'function' && ${JSON.stringify(emergencyPlaces)}.length > 0) {
-                            window.addEmergencyPlaces(${JSON.stringify(emergencyPlaces)});
-                          }
-                        } catch(e) {
-                          console.error('Initial data injection error:', e);
-                        }
-                      })();
-                    `;
-                    webViewRef.current?.injectJavaScript(script);
-                  }
-                }, 1000);
-              }}
-            />
-            
-            {isLoading && (
-              <View style={styles.loadingOverlay}>
-                <View style={styles.loadingCard}>
-                  <ActivityIndicator size="small" color="#007aff" />
-                  <Text style={styles.loadingOverlayText}>Loading emergency services...</Text>
-                </View>
-              </View>
-            )}
-          </>
-        )}
-      </View>
-      
-      {emergencyPlaces.length > 0 && (
-        <View style={styles.statusBar}>
-          <Text style={styles.statusText}>
-            Found {emergencyPlaces.length} emergency services nearby
-          </Text>
+            </>
+          )}
         </View>
-      )}
+
+        {/* Bottom half: Emergency places list */}
+        <View style={styles.listContainer}>
+          <View style={styles.listHeader}>
+            <Text style={styles.listTitle}>Nearby Emergency Services</Text>
+            {emergencyPlaces.length > 0 && (
+              <Text style={styles.listSubtitle}>{emergencyPlaces.length} places found</Text>
+            )}
+          </View>
+
+          {!location || locationPermission === false || isLoading ? (
+            <View style={styles.emptyListContainer}>
+              {!location || locationPermission === false ? (
+                <Text style={styles.emptyListText}>
+                  Please enable location to see nearby services
+                </Text>
+              ) : (
+                <ActivityIndicator size="small" color="#007aff" />
+              )}
+            </View>
+          ) : emergencyPlaces.length === 0 ? (
+            <View style={styles.emptyListContainer}>
+              <IconSymbol size={30} name="exclamationmark.circle" color="#999" />
+              <Text style={styles.emptyListTitle}>No services found</Text>
+              <Text style={styles.emptyListText}>
+                We couldn't find any emergency services nearby. Try expanding your search.
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={emergencyPlaces}
+              keyExtractor={(_, index) => `place_${index}`}
+              renderItem={renderEmergencyPlaceItem}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={true}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              ListFooterComponent={<View style={{ height: 20 }} />}
+            />
+          )}
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -729,9 +900,117 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
-  mapContainer: {
+  contentContainer: {
     flex: 1,
+    flexDirection: 'column',
+  },
+  mapContainer: {
+    height: '50%', // Map takes up half the screen
     backgroundColor: '#e9ecef',
+  },
+  listContainer: {
+    height: '50%', // List takes up half the screen
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  listHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  listTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  listSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+  },
+  placeCard: {
+    flexDirection: 'row',
+    padding: 12,
+    borderRadius: 12,
+    marginVertical: 6,
+  },
+  placeCardSelected: {
+    borderWidth: 2,
+    borderColor: '#007aff',
+  },
+  placeIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  placeIcon: {
+    fontSize: 20,
+  },
+  placeDetails: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  placeName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 4,
+  },
+  placeMetaContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  placeDistance: {
+    fontSize: 14,
+    color: '#666',
+  },
+  placeType: {
+    fontSize: 14,
+    color: '#007aff',
+    fontWeight: '500',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#e9ecef',
+    marginHorizontal: 8,
+  },
+  emptyListContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  emptyListTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  emptyListText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
   },
   permissionContainer: {
     flex: 1,
@@ -818,19 +1097,6 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontSize: 14,
     color: '#333',
-    fontWeight: '500',
-  },
-  statusBar: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
-  },
-  statusText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
     fontWeight: '500',
   },
   map: {
