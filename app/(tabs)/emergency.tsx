@@ -1,11 +1,101 @@
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+
+type Contact = {
+  id: string;
+  name: string;
+  phone_number: string;
+  relation: string;
+};
 
 export default function EmergencyScreen() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [firstAidItems, setFirstAidItems] = useState<any[]>([]);
+  const [isFirstAidLoading, setIsFirstAidLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchContacts();
+      fetchFirstAidItems();
+    } else {
+      setIsLoading(false);
+      setIsFirstAidLoading(false);
+    }
+  }, [user]);
+
+  const fetchContacts = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('emergency_contacts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name', { ascending: true })
+        .limit(2);
+      
+      if (error) throw error;
+      
+      setContacts(data || []);
+    } catch (error) {
+      console.error('Error fetching emergency contacts:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchFirstAidItems = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('first_aid_guide')
+        .select('*')
+        .order('title', { ascending: true })
+        .limit(1);
+      
+      if (error) throw error;
+      
+      // Parse steps which are stored as a string in the database
+      const parsedData = data.map(item => ({
+        ...item,
+        steps: JSON.parse(item.steps)
+      }));
+      
+      setFirstAidItems(parsedData || []);
+    } catch (error) {
+      console.error('Error fetching first aid items:', error);
+    } finally {
+      setIsFirstAidLoading(false);
+    }
+  };
+
+  const handleCall = (phoneNumber: string) => {
+    Linking.openURL(`tel:${phoneNumber}`);
+  };
+
+  const handleSOS = () => {
+    router.push('/emergency/sos');
+  };
+
+  const getRelationColor = (relation: string) => {
+    switch(relation) {
+      case 'emergency': return '#ff3b30';
+      case 'hospital': return '#0084ff';
+      case 'doctor': return '#34c759';
+      default: return '#ff9500';
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -20,7 +110,7 @@ export default function EmergencyScreen() {
           end={{ x: 1, y: 0 }}
           style={styles.sosButtonGradient}
         >
-          <TouchableOpacity style={styles.sosButton}>
+          <TouchableOpacity style={styles.sosButton} onPress={handleSOS}>
             <View style={styles.sosInner}>
               <IconSymbol size={32} name="phone.fill" color="#fff" />
               <Text style={styles.sosButtonText}>SOS</Text>
@@ -76,25 +166,43 @@ export default function EmergencyScreen() {
             </Link>
           </View>
 
-          <View style={styles.contactCard}>
-            <View style={styles.contactInfo}>
-              <Text style={styles.contactName}>Local Hospital</Text>
-              <Text style={styles.contactNumber}>123-456-7890</Text>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#0084ff" />
+              <Text style={styles.loadingText}>Loading contacts...</Text>
             </View>
-            <TouchableOpacity style={styles.callButton}>
-              <IconSymbol size={20} name="phone.fill" color="#fff" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.contactCard}>
-            <View style={styles.contactInfo}>
-              <Text style={styles.contactName}>Primary Doctor</Text>
-              <Text style={styles.contactNumber}>098-765-4321</Text>
+          ) : contacts.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <IconSymbol size={24} name="person.crop.circle.badge.plus" color="#c5d5e6" />
+              <Text style={styles.emptyText}>No emergency contacts found</Text>
+              <Link href="/emergency/contacts" asChild>
+                <TouchableOpacity style={styles.addContactButton}>
+                  <Text style={styles.addContactText}>Add Contacts</Text>
+                </TouchableOpacity>
+              </Link>
             </View>
-            <TouchableOpacity style={styles.callButton}>
-              <IconSymbol size={20} name="phone.fill" color="#fff" />
-            </TouchableOpacity>
-          </View>
+          ) : (
+            contacts.map((contact) => (
+              <View key={contact.id} style={styles.contactCard}>
+                <View style={[styles.contactIndicator, { backgroundColor: getRelationColor(contact.relation) }]} />
+                <View style={styles.contactInfo}>
+                  <Text style={styles.contactName}>{contact.name}</Text>
+                  <Text style={styles.contactNumber}>{contact.phone_number}</Text>
+                  <View style={[styles.contactBadge, { backgroundColor: `${getRelationColor(contact.relation)}15` }]}>
+                    <Text style={[styles.contactBadgeText, { color: getRelationColor(contact.relation) }]}>
+                      {contact.relation}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.callButton}
+                  onPress={() => handleCall(contact.phone_number)}
+                >
+                  <IconSymbol size={20} name="phone.fill" color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
         </View>
 
         <View style={styles.cardContainer}>
@@ -106,14 +214,31 @@ export default function EmergencyScreen() {
               </TouchableOpacity>
             </Link>
           </View>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>CPR Instructions</Text>
-            <Text style={styles.cardText}>1. Check for responsiveness and call for help</Text>
-            <Text style={styles.cardText}>2. Place the person on their back</Text>
-            <Text style={styles.cardText}>3. Start chest compressions (30x)</Text>
-            <Text style={styles.cardText}>4. Give two rescue breaths</Text>
-            <Text style={styles.cardText}>5. Continue CPR until help arrives</Text>
-          </View>
+          
+          {isFirstAidLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#0084ff" />
+              <Text style={styles.loadingText}>Loading first aid tips...</Text>
+            </View>
+          ) : firstAidItems.length === 0 ? (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>CPR Instructions</Text>
+              <Text style={styles.cardText}>1. Check for responsiveness and call for help</Text>
+              <Text style={styles.cardText}>2. Place the person on their back</Text>
+              <Text style={styles.cardText}>3. Start chest compressions (30x)</Text>
+              <Text style={styles.cardText}>4. Give two rescue breaths</Text>
+              <Text style={styles.cardText}>5. Continue CPR until help arrives</Text>
+            </View>
+          ) : (
+            firstAidItems.map(item => (
+              <View key={item.id} style={styles.card}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                {item.steps.map((step: string, index: number) => (
+                  <Text key={index} style={styles.cardText}>{index + 1}. {step}</Text>
+                ))}
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -274,6 +399,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f0f0f0',
   },
+  contactIndicator: {
+    width: 4,
+    height: '80%',
+    borderRadius: 2,
+    marginRight: 16,
+  },
   contactInfo: {
     flex: 1,
   },
@@ -281,11 +412,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#222',
+    marginBottom: 4,
   },
   contactNumber: {
     fontSize: 14,
     color: '#666',
-    marginTop: 4,
+    marginBottom: 8,
+  },
+  contactBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  contactBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
   callButton: {
     backgroundColor: '#0084ff',
@@ -299,5 +442,40 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
+  },
+  loadingContainer: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+  },
+  emptyContainer: {
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  addContactButton: {
+    backgroundColor: '#0084ff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  addContactText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

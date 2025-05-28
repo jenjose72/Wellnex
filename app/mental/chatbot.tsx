@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, Animated, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
@@ -7,50 +7,127 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Response templates for the chatbot
-const botResponses = {
+// Add your Gemini API key here
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+// Mental wellness system prompt for Gemini
+const SYSTEM_PROMPT = `You are a compassionate mental wellness assistant. Your role is to provide emotional support, comfort, and guidance to users who may be experiencing difficult emotions or mental health challenges. 
+
+Guidelines:
+- Always respond with empathy, warmth, and understanding
+- Validate the user's feelings without judgment
+- Offer gentle, practical coping strategies when appropriate
+- Use encouraging and hopeful language
+- Keep responses conversational and supportive (2-4 sentences typically)
+- If someone expresses severe distress or suicidal thoughts, gently suggest professional help
+- Focus on self-care, mindfulness, and positive coping mechanisms
+- Remember that you're here to comfort and support, not to diagnose or replace professional therapy
+
+Respond as if you're a caring friend who genuinely wants to help the person feel better.`;
+
+// Fallback responses for when API fails
+const fallbackResponses = {
   greeting: [
-    "Hello! I'm here to support your mental wellbeing. How are you feeling today?",
-    "Hi there! I'm your mental wellness assistant. What's on your mind?",
-    "Welcome! I'm here to chat about anything that's troubling you. How can I help?"
-  ],
-  stressed: [
-    "I'm sorry to hear you're feeling stressed. Have you tried any relaxation techniques today?",
-    "Stress can be challenging. Would you like me to suggest some quick breathing exercises?",
-    "When you're stressed, it's important to take breaks. Would you like some self-care suggestions?"
-  ],
-  sad: [
-    "I'm sorry you're feeling down. Would you like to talk about what's making you sad?",
-    "Remember that it's okay to feel sad sometimes. Would it help to discuss what triggered this feeling?",
-    "Thank you for sharing that with me. Is there anything specific that might help lift your mood right now?"
-  ],
-  anxious: [
-    "Anxiety can be overwhelming. Let's focus on the present moment. What are five things you can see around you?",
-    "When anxiety strikes, grounding techniques can help. Would you like me to guide you through one?",
-    "I understand anxiety is difficult. Remember to breathe slowly. Is there a specific worry on your mind?"
+    "Hello! I'm here to support you through whatever you're going through. How are you feeling right now?",
+    "Hi there! I'm glad you're here. Sometimes just reaching out is the hardest step. What's on your mind?",
+    "Welcome! I'm here to listen without judgment and offer support. How can I help you today?"
   ],
   general: [
-    "Thank you for sharing that. How long have you been feeling this way?",
-    "I appreciate you opening up. Would you like to talk more about this?",
-    "Your feelings are valid. Is there something specific you'd like support with today?",
-    "I'm here to listen. What do you think might help you feel better right now?"
+    "I hear you, and your feelings are completely valid. You're not alone in this.",
+    "Thank you for sharing that with me. It takes courage to open up about how you're feeling.",
+    "I'm here with you through this difficult moment. Remember, this feeling will pass.",
+    "You're being so brave by reaching out. What you're going through is real and important."
+  ],
+  error: [
+    "I'm having trouble connecting right now, but I want you to know that I'm here for you. Your feelings matter.",
+    "Even though I'm experiencing some technical difficulties, please know that you're not alone. How are you holding up?",
+    "I may be having connection issues, but what you're feeling is valid and important. Can you tell me more about what's going on?"
   ]
 };
 
-// Get a random response from the appropriate category
-function getResponse(text) {
+// Function to call Gemini API
+async function getGeminiResponse(userMessage, conversationHistory = []) {
+  try {
+    // Prepare conversation context
+    let contextMessages = conversationHistory.slice(-6); // Last 6 messages for context
+    let conversationContext = contextMessages.map(msg => 
+      `${msg.sender === 'user' ? 'User' : 'Assistant'}: ${msg.text}`
+    ).join('\n');
+
+    const prompt = `${SYSTEM_PROMPT}
+
+Previous conversation context:
+${conversationContext}
+
+Current user message: ${userMessage}
+
+Please respond with empathy and support:`;
+
+    const response = await fetch(GEMINI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 200,
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          }
+        ]
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      return data.candidates[0].content.parts[0].text.trim();
+    } else {
+      throw new Error('Invalid response format from Gemini API');
+    }
+    
+  } catch (error) {
+    console.error('Gemini API Error:', error);
+    return null;
+  }
+}
+
+// Get fallback response
+function getFallbackResponse(text) {
   const lowerCaseText = text.toLowerCase();
   
   if (lowerCaseText.includes('hello') || lowerCaseText.includes('hi') || lowerCaseText.includes('hey')) {
-    return botResponses.greeting[Math.floor(Math.random() * botResponses.greeting.length)];
-  } else if (lowerCaseText.includes('stress') || lowerCaseText.includes('overwhelm')) {
-    return botResponses.stressed[Math.floor(Math.random() * botResponses.stressed.length)];
-  } else if (lowerCaseText.includes('sad') || lowerCaseText.includes('unhappy') || lowerCaseText.includes('depress')) {
-    return botResponses.sad[Math.floor(Math.random() * botResponses.sad.length)];
-  } else if (lowerCaseText.includes('anxi') || lowerCaseText.includes('worry') || lowerCaseText.includes('panic')) {
-    return botResponses.anxious[Math.floor(Math.random() * botResponses.anxious.length)];
+    return fallbackResponses.greeting[Math.floor(Math.random() * fallbackResponses.greeting.length)];
   } else {
-    return botResponses.general[Math.floor(Math.random() * botResponses.general.length)];
+    return fallbackResponses.general[Math.floor(Math.random() * fallbackResponses.general.length)];
   }
 }
 
@@ -60,18 +137,20 @@ export default function ChatbotScreen() {
   const [messages, setMessages] = useState([
     {
       id: '1',
-      text: "Hello! I'm here to support your mental wellbeing. How are you feeling today?",
+      text: "Hello! I'm here to support you through whatever you're experiencing. You're not alone, and your feelings matter. How are you doing today?",
       sender: 'bot',
       timestamp: new Date()
     }
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
   const scrollViewRef = useRef(null);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
-  // Load previous chat logs when component mounts
+  // Check API connection on mount
   useEffect(() => {
+    checkAPIConnection();
     if (user) {
       loadChatHistory();
     }
@@ -82,6 +161,18 @@ export default function ChatbotScreen() {
       useNativeDriver: true,
     }).start();
   }, [user]);
+
+  // Check if Gemini API is configured
+  const checkAPIConnection = () => {
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
+      setIsConnected(false);
+      Alert.alert(
+        'API Configuration Required', 
+        'Please add your Gemini API key to enable AI responses. The chatbot will use fallback responses for now.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
 
   // Load chat history from Supabase
   const loadChatHistory = async () => {
@@ -100,11 +191,9 @@ export default function ChatbotScreen() {
       }
       
       if (data && data.length > 0) {
-        // Transform data into message format
         const chatHistory = [];
         
         data.forEach(log => {
-          // Add user message
           chatHistory.push({
             id: `user-${log.id}`,
             text: log.user_msg,
@@ -112,7 +201,6 @@ export default function ChatbotScreen() {
             timestamp: new Date(log.timestamp)
           });
           
-          // Add bot response
           chatHistory.push({
             id: `bot-${log.id}`,
             text: log.bot_response,
@@ -122,7 +210,6 @@ export default function ChatbotScreen() {
         });
         
         setMessages(prevMessages => {
-          // Keep only the first welcome message and add history
           const welcomeMessage = prevMessages[0];
           return [welcomeMessage, ...chatHistory];
         });
@@ -135,7 +222,6 @@ export default function ChatbotScreen() {
   const sendMessage = async () => {
     if (inputText.trim() === '') return;
     
-    // Add user message
     const userMessage = {
       id: Date.now().toString(),
       text: inputText,
@@ -148,8 +234,17 @@ export default function ChatbotScreen() {
     setInputText('');
     setIsTyping(true);
     
-    // Get bot response
-    const botResponseText = getResponse(userMessageText);
+    let botResponseText;
+    
+    // Try to get response from Gemini API
+    if (isConnected && GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE') {
+      botResponseText = await getGeminiResponse(userMessageText, messages);
+    }
+    
+    // Fall back to predefined responses if API fails
+    if (!botResponseText) {
+      botResponseText = getFallbackResponse(userMessageText);
+    }
     
     // Save to Supabase if user is authenticated
     if (user) {
@@ -168,7 +263,7 @@ export default function ChatbotScreen() {
       }
     }
     
-    // Simulate bot typing with a delay
+    // Simulate natural typing delay
     setTimeout(() => {
       const botMessage = {
         id: (Date.now() + 1).toString(),
@@ -179,13 +274,15 @@ export default function ChatbotScreen() {
       
       setIsTyping(false);
       setMessages(prev => [...prev, botMessage]);
-    }, 1500);
+    }, 1500 + Math.random() * 1000); // Random delay between 1.5-2.5 seconds
   };
 
   // Scroll to bottom when messages change
   useEffect(() => {
     if (scrollViewRef.current) {
-      scrollViewRef.current.scrollToEnd({ animated: true });
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     }
   }, [messages, isTyping]);
 
@@ -201,10 +298,12 @@ export default function ChatbotScreen() {
           <IconSymbol size={24} name="chevron.left" color="#333" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Mental Health Assistant</Text>
+          <Text style={styles.headerTitle}>Mental Wellness Assistant</Text>
           <View style={styles.statusIndicator}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.statusText}>Online</Text>
+            <View style={[styles.onlineDot, !isConnected && styles.offlineDot]} />
+            <Text style={[styles.statusText, !isConnected && styles.offlineText]}>
+              {isConnected ? 'AI Powered' : 'Basic Mode'}
+            </Text>
           </View>
         </View>
         <View style={{ width: 40 }} />
@@ -215,6 +314,7 @@ export default function ChatbotScreen() {
           ref={scrollViewRef}
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesContent}
+          showsVerticalScrollIndicator={false}
         >
           {messages.map(message => (
             <View 
@@ -242,10 +342,11 @@ export default function ChatbotScreen() {
           {isTyping && (
             <View style={[styles.messageBubble, styles.botBubble, styles.typingBubble]}>
               <View style={styles.typingIndicator}>
-                <View style={[styles.typingDot, styles.typingDot1]} />
-                <View style={[styles.typingDot, styles.typingDot2]} />
-                <View style={[styles.typingDot, styles.typingDot3]} />
+                <Animated.View style={[styles.typingDot, styles.typingDot1]} />
+                <Animated.View style={[styles.typingDot, styles.typingDot2]} />
+                <Animated.View style={[styles.typingDot, styles.typingDot3]} />
               </View>
+              <Text style={styles.typingText}>Assistant is typing...</Text>
             </View>
           )}
         </ScrollView>
@@ -259,16 +360,21 @@ export default function ChatbotScreen() {
             style={styles.input}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Type your message here..."
+            placeholder="Share what's on your mind..."
             placeholderTextColor="#999"
             multiline
+            maxLength={500}
           />
           <TouchableOpacity 
             style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
             onPress={sendMessage}
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || isTyping}
           >
-            <IconSymbol size={20} name="paperplane.fill" color="#fff" />
+            {isTyping ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <IconSymbol size={20} name="paperplane.fill" color="#fff" />
+            )}
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </Animated.View>
@@ -317,13 +423,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#0084ff',
+    backgroundColor: '#4CAF50',
     marginRight: 6,
+  },
+  offlineDot: {
+    backgroundColor: '#FF9800',
   },
   statusText: {
     fontSize: 12,
-    color: '#0084ff',
+    color: '#4CAF50',
     fontWeight: '500',
+  },
+  offlineText: {
+    color: '#FF9800',
   },
   chatContainer: {
     flex: 1,
@@ -334,13 +446,19 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     padding: 16,
+    paddingBottom: 20,
   },
   messageBubble: {
-    maxWidth: '80%',
+    maxWidth: '85%',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   userBubble: {
     alignSelf: 'flex-end',
@@ -349,7 +467,7 @@ const styles = StyleSheet.create({
   },
   botBubble: {
     alignSelf: 'flex-start',
-    backgroundColor: '#f0f7ff',
+    backgroundColor: '#ffffff',
     borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: '#e6f2ff',
@@ -376,14 +494,15 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   typingBubble: {
-    paddingVertical: 14,
-    width: 80,
+    paddingVertical: 16,
+    minWidth: 120,
   },
   typingIndicator: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     height: 16,
+    marginBottom: 4,
   },
   typingDot: {
     width: 8,
@@ -391,22 +510,18 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#0084ff',
     marginHorizontal: 2,
-    opacity: 0.6,
   },
-  typingDot1: {
-    opacity: 0.4,
-  },
-  typingDot2: {
-    opacity: 0.7,
-  },
-  typingDot3: {
-    opacity: 1,
+  typingText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   inputContainer: {
     flexDirection: 'row',
     padding: 16,
     backgroundColor: '#fff',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     borderTopWidth: 1,
     borderTopColor: '#e6f2ff',
   },
@@ -421,6 +536,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#e6f2ff',
+    textAlignVertical: 'top',
   },
   sendButton: {
     width: 48,

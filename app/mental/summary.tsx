@@ -1,39 +1,19 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Dimensions, Animated } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Dimensions, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
-// Mock data for mood history
-const weeklyMoodData = {
-  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  datasets: [
-    {
-      data: [4, 3, 2, 3, 4, 3, 3],
-      color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`,
-      strokeWidth: 2
-    }
-  ],
-  legend: ['Mood (1-4)']
-};
-
-// Mock data for mood distribution
-const moodDistribution = {
-  labels: ['Great', 'Good', 'Okay', 'Bad'],
-  data: [30, 45, 20, 5],
-  colors: ['#28a745', '#0084ff', '#ffc107', '#dc3545'],
-  legendFontColor: '#7F7F7F',
-  legendFontSize: 12
-};
-
-// Mock data for top triggers
-const triggersData = {
-  labels: ['Work', 'Sleep', 'Social', 'Health', 'Other'],
-  data: [
-    [35, 28, 15, 12, 10]
-  ]
+type MoodLog = {
+  id: string;
+  mood: string;
+  note: string;
+  energy_level: number;
+  logged_at: string;
 };
 
 export default function SummaryScreen() {
@@ -41,8 +21,27 @@ export default function SummaryScreen() {
   const screenWidth = Dimensions.get('window').width - 40;
   const [timeframe, setTimeframe] = useState('week');
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const { user } = useAuth();
   
-  React.useEffect(() => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [moodData, setMoodData] = useState({
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [{
+      data: [0, 0, 0, 0, 0, 0, 0],
+      color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`,
+      strokeWidth: 2
+    }],
+    legend: ['Mood']
+  });
+  
+  const [distributionData, setDistributionData] = useState({
+    labels: ['Great', 'Good', 'Okay', 'Bad'],
+    data: [0, 0, 0, 0],
+    colors: ['#28a745', '#0084ff', '#ffc107', '#dc3545']
+  });
+  
+  // Start fade animation
+  useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 600,
@@ -50,6 +49,192 @@ export default function SummaryScreen() {
     }).start();
   }, []);
   
+  // Fetch data when component mounts or timeframe changes
+  useEffect(() => {
+    if (user) {
+      fetchMoodData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user, timeframe]);
+
+  const fetchMoodData = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Calculate date range based on selected timeframe
+      const endDate = new Date();
+      let startDate = new Date();
+      
+      if (timeframe === 'week') {
+        startDate.setDate(endDate.getDate() - 7);
+      } else if (timeframe === 'month') {
+        startDate.setMonth(endDate.getMonth() - 1);
+      } else {
+        startDate.setMonth(endDate.getMonth() - 3);
+      }
+      
+      // Fetch mood logs from Supabase
+      const { data, error } = await supabase
+        .from('mood_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('logged_at', startDate.toISOString())
+        .lte('logged_at', endDate.toISOString())
+        .order('logged_at', { ascending: true });
+      
+      if (error) throw error;
+      
+      // Process data for charts
+      if (data && data.length > 0) {
+        processMoodData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching mood data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const processMoodData = (data: MoodLog[]) => {
+    // Process mood trend data based on timeframe
+    const labels: string[] = [];
+    const moodValues: number[] = [];
+    
+    if (timeframe === 'week') {
+      // Group by day of week
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const moodByDay: {[key: string]: number[]} = {};
+      
+      // Initialize all days
+      for (let i = 6; i >= 0; i--) {
+        const day = new Date();
+        day.setDate(day.getDate() - i);
+        const dayName = dayNames[day.getDay()];
+        labels.push(dayName);
+        moodByDay[dayName] = [];
+      }
+      
+      // Group mood values by day
+      data.forEach(log => {
+        const date = new Date(log.logged_at);
+        const day = dayNames[date.getDay()];
+        const moodValue = getMoodValue(log.mood);
+        if (moodByDay[day]) {
+          moodByDay[day].push(moodValue);
+        }
+      });
+      
+      // Calculate average mood for each day
+      labels.forEach(day => {
+        const moods = moodByDay[day];
+        if (moods.length > 0) {
+          const avgMood = moods.reduce((sum, val) => sum + val, 0) / moods.length;
+          moodValues.push(parseFloat(avgMood.toFixed(1)));
+        } else {
+          moodValues.push(0);
+        }
+      });
+    } else if (timeframe === 'month') {
+      // Group by week
+      for (let i = 0; i < 4; i++) {
+        labels.push(`Week ${i+1}`);
+      }
+      
+      const weekBuckets: number[][] = [[], [], [], []];
+      
+      data.forEach(log => {
+        const logDate = new Date(log.logged_at);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - logDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const weekIndex = Math.min(3, Math.floor(diffDays / 7));
+        
+        weekBuckets[weekIndex].push(getMoodValue(log.mood));
+      });
+      
+      weekBuckets.forEach(bucket => {
+        if (bucket.length > 0) {
+          const avgMood = bucket.reduce((sum, val) => sum + val, 0) / bucket.length;
+          moodValues.push(parseFloat(avgMood.toFixed(1)));
+        } else {
+          moodValues.push(0);
+        }
+      });
+    } else {
+      // Group by month
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const currentMonth = new Date().getMonth();
+      
+      for (let i = 2; i >= 0; i--) {
+        const monthIndex = (currentMonth - i + 12) % 12;
+        labels.push(monthNames[monthIndex]);
+      }
+      
+      const monthBuckets: number[][] = [[], [], []];
+      
+      data.forEach(log => {
+        const logDate = new Date(log.logged_at);
+        const monthDiff = (currentMonth - logDate.getMonth() + 12) % 12;
+        if (monthDiff < 3) {
+          monthBuckets[monthDiff].push(getMoodValue(log.mood));
+        }
+      });
+      
+      monthBuckets.forEach(bucket => {
+        if (bucket.length > 0) {
+          const avgMood = bucket.reduce((sum, val) => sum + val, 0) / bucket.length;
+          moodValues.push(parseFloat(avgMood.toFixed(1)));
+        } else {
+          moodValues.push(0);
+        }
+      });
+    }
+    
+    // Update mood trend chart data
+    setMoodData({
+      labels,
+      datasets: [{
+        data: moodValues,
+        color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`,
+        strokeWidth: 2
+      }],
+      legend: ['Mood']
+    });
+    
+    // Process mood distribution data
+    const distribution = {
+      Great: 0,
+      Good: 0,
+      Okay: 0,
+      Bad: 0
+    };
+    
+    data.forEach(log => {
+      if (distribution[log.mood] !== undefined) {
+        distribution[log.mood]++;
+      }
+    });
+    
+    setDistributionData({
+      labels: Object.keys(distribution),
+      data: Object.values(distribution),
+      colors: ['#28a745', '#0084ff', '#ffc107', '#dc3545']
+    });
+  };
+  
+  const getMoodValue = (mood: string): number => {
+    switch (mood.toLowerCase()) {
+      case 'great': return 5;
+      case 'good': return 4;
+      case 'okay': return 3;
+      case 'bad': return 2;
+      default: return 3;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient
@@ -62,7 +247,9 @@ export default function SummaryScreen() {
           <IconSymbol size={24} name="chevron.left" color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mental Wellness Summary</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={fetchMoodData} style={styles.refreshButton}>
+          <IconSymbol size={20} name="arrow.clockwise" color="#333" />
+        </TouchableOpacity>
       </LinearGradient>
       
       <ScrollView 
@@ -97,224 +284,132 @@ export default function SummaryScreen() {
           </TouchableOpacity>
         </View>
         
-        <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
-          <Text style={styles.cardTitle}>Mood Trend</Text>
-          <LineChart
-            data={weeklyMoodData}
-            width={screenWidth}
-            height={220}
-            chartConfig={{
-              backgroundGradientFrom: '#fff',
-              backgroundGradientTo: '#f8fbff',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(51, 51, 51, ${opacity})`,
-              propsForDots: {
-                r: '6',
-                strokeWidth: '2',
-                stroke: '#0084ff',
-              },
-              propsForBackgroundLines: {
-                stroke: '#e6f2ff',
-                strokeDasharray: '',
-              },
-              useShadowColorFromDataset: false,
-            }}
-            bezier
-            style={styles.chart}
-          />
-        </Animated.View>
-        
-        <View style={styles.insightsContainer}>
-          <Text style={styles.sectionTitle}>Key Insights</Text>
-          
-          <Animated.View 
-            style={[styles.insightCard, { opacity: fadeAnim }]}
-          >
-            <LinearGradient
-              colors={['#e6f2ff', '#f0f7ff']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.insightIcon}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0084ff" />
+            <Text style={styles.loadingText}>Loading your mood data...</Text>
+          </View>
+        ) : (
+          <>
+            <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
+              <Text style={styles.cardTitle}>Mood Trend</Text>
+              <LineChart
+                data={moodData}
+                width={screenWidth}
+                height={220}
+                chartConfig={{
+                  backgroundGradientFrom: '#fff',
+                  backgroundGradientTo: '#f8fbff',
+                  decimalPlaces: 1,
+                  color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(51, 51, 51, ${opacity})`,
+                  propsForDots: {
+                    r: '6',
+                    strokeWidth: '2',
+                    stroke: '#0084ff',
+                  },
+                  propsForBackgroundLines: {
+                    stroke: '#e6f2ff',
+                    strokeDasharray: '',
+                  },
+                  useShadowColorFromDataset: false,
+                }}
+                bezier
+                style={styles.chart}
+                fromZero
+              />
+            </Animated.View>
+            
+            <Animated.View 
+              style={[
+                styles.card, 
+                { 
+                  opacity: fadeAnim,
+                  transform: [{ translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [30, 0]
+                  }) }] 
+                }
+              ]}
             >
-              <IconSymbol size={24} name="chart.line.uptrend.xyaxis" color="#0084ff" />
-            </LinearGradient>
-            <View style={styles.insightContent}>
-              <Text style={styles.insightTitle}>Your mood is improving</Text>
-              <Text style={styles.insightText}>You've had 10% more positive days compared to last week.</Text>
+              <Text style={styles.cardTitle}>Mood Distribution</Text>
+              <PieChart
+                data={distributionData.data.map((value, index) => ({
+                  name: distributionData.labels[index],
+                  population: value,
+                  color: distributionData.colors[index],
+                  legendFontColor: '#7F7F7F',
+                  legendFontSize: 12
+                }))}
+                width={screenWidth}
+                height={200}
+                chartConfig={{
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                }}
+                accessor="population"
+                backgroundColor="transparent"
+                paddingLeft="15"
+                absolute
+              />
+            </Animated.View>
+            
+            <View style={styles.insightsContainer}>
+              <Text style={styles.sectionTitle}>Daily Tips</Text>
+              
+              <Animated.View 
+                style={[
+                  styles.insightCard, 
+                  { 
+                    opacity: fadeAnim,
+                    transform: [{ translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0]
+                    }) }] 
+                  }
+                ]}
+              >
+                <LinearGradient
+                  colors={['#e2f5eb', '#ebfbf2']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.insightIcon}
+                >
+                  <IconSymbol size={24} name="figure.walk" color="#34c759" />
+                </LinearGradient>
+                <View style={styles.insightContent}>
+                  <Text style={styles.insightTitle}>Exercise helps your mood</Text>
+                  <Text style={styles.insightText}>Try to include 20 minutes of movement daily.</Text>
+                </View>
+              </Animated.View>
+              
+              <Animated.View 
+                style={[
+                  styles.insightCard, 
+                  { 
+                    opacity: fadeAnim,
+                    transform: [{ translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [40, 0]
+                    }) }] 
+                  }
+                ]}
+              >
+                <LinearGradient
+                  colors={['#fff0e6', '#fff5ed']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.insightIcon}
+                >
+                  <IconSymbol size={24} name="bed.double.fill" color="#ff9500" />
+                </LinearGradient>
+                <View style={styles.insightContent}>
+                  <Text style={styles.insightTitle}>Sleep affects your wellbeing</Text>
+                  <Text style={styles.insightText}>Aim for 7-8 hours of quality sleep each night.</Text>
+                </View>
+              </Animated.View>
             </View>
-          </Animated.View>
-          
-          <Animated.View 
-            style={[
-              styles.insightCard, 
-              { 
-                opacity: fadeAnim,
-                transform: [{ translateY: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0]
-                }) }] 
-              }
-            ]}
-          >
-            <LinearGradient
-              colors={['#e2f5eb', '#ebfbf2']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.insightIcon}
-            >
-              <IconSymbol size={24} name="figure.walk" color="#34c759" />
-            </LinearGradient>
-            <View style={styles.insightContent}>
-              <Text style={styles.insightTitle}>Exercise helps your mood</Text>
-              <Text style={styles.insightText}>Days with exercise show 25% better mood scores.</Text>
-            </View>
-          </Animated.View>
-          
-          <Animated.View 
-            style={[
-              styles.insightCard, 
-              { 
-                opacity: fadeAnim,
-                transform: [{ translateY: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [40, 0]
-                }) }] 
-              }
-            ]}
-          >
-            <LinearGradient
-              colors={['#fff0e6', '#fff5ed']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.insightIcon}
-            >
-              <IconSymbol size={24} name="bed.double.fill" color="#ff9500" />
-            </LinearGradient>
-            <View style={styles.insightContent}>
-              <Text style={styles.insightTitle}>Sleep affects your wellbeing</Text>
-              <Text style={styles.insightText}>Your mood tends to be lower on days with less than 7 hours of sleep.</Text>
-            </View>
-          </Animated.View>
-        </View>
-        
-        <Animated.View 
-          style={[
-            styles.card, 
-            { 
-              opacity: fadeAnim,
-              transform: [{ translateY: fadeAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30, 0]
-              }) }] 
-            }
-          ]}
-        >
-          <Text style={styles.cardTitle}>Mood Distribution</Text>
-          <PieChart
-            data={moodDistribution}
-            width={screenWidth}
-            height={200}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="data"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-        </Animated.View>
-        
-        <Animated.View 
-          style={[
-            styles.card, 
-            { 
-              opacity: fadeAnim,
-              transform: [{ translateY: fadeAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30, 0]
-              }) }] 
-            }
-          ]}
-        >
-          <Text style={styles.cardTitle}>Top Mood Factors</Text>
-          <BarChart
-            data={triggersData}
-            width={screenWidth}
-            height={220}
-            yAxisLabel="%"
-            chartConfig={{
-              backgroundGradientFrom: '#fff',
-              backgroundGradientTo: '#f8fbff',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(51, 51, 51, ${opacity})`,
-              style: {
-                borderRadius: 16,
-              },
-              barPercentage: 0.6,
-            }}
-            style={styles.chart}
-          />
-        </Animated.View>
-        
-        <View style={styles.recommendationsContainer}>
-          <Text style={styles.sectionTitle}>Recommendations</Text>
-          
-          <TouchableOpacity style={styles.recommendationCard}>
-            <LinearGradient
-              colors={['#e6f2ff', '#f0f7ff']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.recommendationIcon}
-            >
-              <IconSymbol size={24} name="person.fill.viewfinder" color="#0084ff" />
-            </LinearGradient>
-            <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationTitle}>Morning Meditation</Text>
-              <Text style={styles.recommendationText}>Start your day with 5 minutes of mindfulness</Text>
-            </View>
-            <View style={styles.recommendationArrow}>
-              <IconSymbol size={20} name="chevron.right" color="#0084ff" />
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.recommendationCard}>
-            <LinearGradient
-              colors={['#e2f5eb', '#ebfbf2']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.recommendationIcon}
-            >
-              <IconSymbol size={24} name="figure.walk" color="#34c759" />
-            </LinearGradient>
-            <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationTitle}>Daily Walk</Text>
-              <Text style={styles.recommendationText}>Aim for 20 minutes of walking each day</Text>
-            </View>
-            <View style={styles.recommendationArrow}>
-              <IconSymbol size={20} name="chevron.right" color="#34c759" />
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.recommendationCard}>
-            <LinearGradient
-              colors={['#efe7f8', '#f3e5ff']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.recommendationIcon}
-            >
-              <IconSymbol size={24} name="book.fill" color="#6f42c1" />
-            </LinearGradient>
-            <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationTitle}>Journal Your Thoughts</Text>
-              <Text style={styles.recommendationText}>Regular journaling has been shown to improve mental clarity</Text>
-            </View>
-            <View style={styles.recommendationArrow}>
-              <IconSymbol size={20} name="chevron.right" color="#6f42c1" />
-            </View>
-          </TouchableOpacity>
-        </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -342,6 +437,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#f1f3f5',
   },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: '#f1f3f5',
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -350,6 +453,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     flex: 1,
     padding: 16,
+  },
+  scrollContentContainer: {
+    paddingBottom: 40,
   },
   timeframeSelector: {
     flexDirection: 'row',
@@ -374,6 +480,16 @@ const styles = StyleSheet.create({
   timeframeTextSelected: {
     color: '#333',
     fontWeight: '600',
+  },
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
   },
   card: {
     backgroundColor: '#fff',
@@ -439,42 +555,5 @@ const styles = StyleSheet.create({
   insightText: {
     fontSize: 14,
     color: '#666',
-  },
-  recommendationsContainer: {
-    marginBottom: 32,
-  },
-  recommendationCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recommendationIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  recommendationContent: {
-    flex: 1,
-  },
-  recommendationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  recommendationText: {
-    fontSize: 14,
-    color: '#666',
-  },
+  }
 });
