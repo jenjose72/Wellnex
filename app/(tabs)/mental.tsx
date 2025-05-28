@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -6,35 +6,262 @@ import { Link } from 'expo-router';
 import MentalQuote from '@/components/MentalQuote';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
-
-// Mock data for mood tracking history
-const mockMoodData = {
-  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  datasets: [
-    {
-      data: [4, 3, 2, 3, 4, 3, 3],
-      color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`,
-      strokeWidth: 2
-    }
-  ],
-  legend: ['Mood (1-4)']
-};
-
-// Mock analysis data
-const moodAnalysis = {
-  averageMood: 'Good',
-  improvement: '+10%',
-  topTrigger: 'Work Stress',
-  recommendation: 'Try a 5-minute breathing exercise'
-};
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function MentalScreen() {
+  const { user } = useAuth();
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [todayMood, setTodayMood] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [moodData, setMoodData] = useState({
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [{ data: [0, 0, 0, 0, 0, 0, 0], color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`, strokeWidth: 2 }],
+    legend: ['Mood (1-5)']
+  });
+  const [moodAnalysis, setMoodAnalysis] = useState({
+    averageMood: 'N/A',
+    improvement: '0%',
+    topTrigger: 'None',
+    recommendation: 'Start tracking your mood daily'
+  });
   const screenWidth = Dimensions.get('window').width - 32;
+  
+  useEffect(() => {
+    if (user) {
+      fetchTodayMood();
+      fetchMoodData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user]);
+  
+  const fetchTodayMood = async () => {
+    if (!user) return;
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('mood_logs')
+        .select('mood')
+        .eq('user_id', user.id)
+        .gte('logged_at', `${today}T00:00:00`)
+        .lte('logged_at', `${today}T23:59:59`)
+        .order('logged_at', { ascending: false })
+        .limit(1);
+        
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setSelectedMood(data[0].mood);
+        setTodayMood(data[0].mood);
+      }
+    } catch (error) {
+      console.error('Error fetching today mood:', error);
+    }
+  };
+  
+  const fetchMoodData = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      // Get last 7 days of mood data
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - 7);
+      
+      const { data, error } = await supabase
+        .from('mood_logs')
+        .select('mood, energy_level, note, logged_at')
+        .eq('user_id', user.id)
+        .gte('logged_at', startDate.toISOString())
+        .lte('logged_at', endDate.toISOString())
+        .order('logged_at', { ascending: true });
+        
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        // Process data for chart
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const last7Days = Array(7).fill(0).map((_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          return {
+            date: d.toISOString().split('T')[0],
+            day: days[d.getDay()],
+            mood: null,
+            energy: null
+          };
+        });
+        
+        // Map mood data to numeric values
+        const moodValues = {
+          'Great': 5,
+          'Good': 4,
+          'Okay': 3,
+          'Bad': 2,
+          'Terrible': 1
+        };
+        
+        // Fill in data for days we have entries
+        data.forEach(entry => {
+          const entryDate = entry.logged_at.split('T')[0];
+          const dayIndex = last7Days.findIndex(d => d.date === entryDate);
+          
+          if (dayIndex !== -1) {
+            // If multiple entries per day, use the average
+            if (last7Days[dayIndex].mood === null) {
+              last7Days[dayIndex].mood = moodValues[entry.mood] || 3;
+              last7Days[dayIndex].energy = entry.energy_level || 5;
+            } else {
+              // Simple average if multiple entries
+              last7Days[dayIndex].mood = (last7Days[dayIndex].mood + (moodValues[entry.mood] || 3)) / 2;
+              last7Days[dayIndex].energy = (last7Days[dayIndex].energy + (entry.energy_level || 5)) / 2;
+            }
+          }
+        });
+        
+        // Fill gaps with average or default value
+        const validMoods = last7Days.filter(d => d.mood !== null).map(d => d.mood);
+        const avgMood = validMoods.length > 0 
+          ? validMoods.reduce((sum, val) => sum + val, 0) / validMoods.length 
+          : 3;
+        
+        last7Days.forEach(day => {
+          if (day.mood === null) day.mood = avgMood;
+        });
+        
+        // Create chart data
+        setMoodData({
+          labels: last7Days.map(d => d.day),
+          datasets: [{ 
+            data: last7Days.map(d => d.mood),
+            color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`, 
+            strokeWidth: 2 
+          }],
+          legend: ['Mood (1-5)']
+        });
+        
+        // Calculate analysis
+        // 1. Average mood
+        const moodsNames = ['Terrible', 'Bad', 'Okay', 'Good', 'Great'];
+        const averageScore = validMoods.reduce((sum, val) => sum + val, 0) / validMoods.length;
+        const averageMood = moodsNames[Math.round(averageScore) - 1] || 'Okay';
+        
+        // 2. Weekly improvement
+        const firstHalf = validMoods.slice(0, Math.ceil(validMoods.length / 2));
+        const secondHalf = validMoods.slice(Math.ceil(validMoods.length / 2));
+        
+        const firstHalfAvg = firstHalf.length > 0 
+          ? firstHalf.reduce((sum, val) => sum + val, 0) / firstHalf.length 
+          : 0;
+        const secondHalfAvg = secondHalf.length > 0 
+          ? secondHalf.reduce((sum, val) => sum + val, 0) / secondHalf.length 
+          : 0;
+        
+        const improvementPercent = firstHalfAvg === 0 ? 0 : ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
+        
+        // 3. Find top trigger (simplified, would need NLP for better accuracy)
+        const notes = data.map(entry => entry.note || '').filter(note => note !== '');
+        const triggers = [
+          { name: 'Work', keywords: ['work', 'job', 'boss', 'colleague', 'deadline', 'meeting'] },
+          { name: 'Sleep', keywords: ['sleep', 'tired', 'insomnia', 'rest', 'nap', 'bed'] },
+          { name: 'Social', keywords: ['friend', 'social', 'family', 'people', 'relationship', 'partner'] },
+          { name: 'Health', keywords: ['health', 'pain', 'doctor', 'sick', 'illness', 'symptom'] }
+        ];
+        
+        const triggerCounts = triggers.map(trigger => {
+          let count = 0;
+          notes.forEach(note => {
+            const lowerNote = note.toLowerCase();
+            trigger.keywords.forEach(keyword => {
+              if (lowerNote.includes(keyword.toLowerCase())) count++;
+            });
+          });
+          return { name: trigger.name, count };
+        });
+        
+        triggerCounts.sort((a, b) => b.count - a.count);
+        const topTrigger = triggerCounts[0].count > 0 ? triggerCounts[0].name : 'None detected';
+        
+        // 4. Generate a recommendation
+        let recommendation = 'Track your mood daily for better insights';
+        
+        if (topTrigger !== 'None detected') {
+          switch (topTrigger) {
+            case 'Work':
+              recommendation = 'Try a 5-minute breathing exercise before work';
+              break;
+            case 'Sleep':
+              recommendation = 'Consider going to bed 30 minutes earlier';
+              break;
+            case 'Social':
+              recommendation = 'Schedule short breaks from social activities';
+              break;
+            case 'Health':
+              recommendation = 'Add 10 minutes of gentle stretching to your day';
+              break;
+          }
+        } else if (validMoods.length > 3) {
+          if (averageScore < 3) {
+            recommendation = 'Consider talking to someone about how you feel';
+          } else if (averageScore >= 4) {
+            recommendation = 'Keep up your positive practices!';
+          } else {
+            recommendation = 'Try a daily mindfulness practice';
+          }
+        }
+        
+        setMoodAnalysis({
+          averageMood,
+          improvement: `${improvementPercent.toFixed(0)}%`,
+          topTrigger: topTrigger !== 'None detected' ? topTrigger : 'None identified',
+          recommendation
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching mood data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const saveMood = (mood: string) => {
+  const saveMood = async (mood: string) => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to track your mood');
+      return;
+    }
+    
     setSelectedMood(mood);
-    // In a real app, you would save this to storage or a database
+    
+    // Don't save again if user already logged mood today
+    if (mood === todayMood) return;
+    
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from('mood_logs')
+        .insert([{
+          user_id: user.id,
+          mood: mood,
+          energy_level: 5, // Default value
+          note: ''
+        }]);
+        
+      if (error) throw error;
+      
+      setTodayMood(mood);
+      // Refresh mood data after logging a new mood
+      fetchMoodData();
+    } catch (error) {
+      console.error('Error saving mood:', error);
+      Alert.alert('Error', 'Failed to save your mood');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const getMoodColor = (mood) => {
@@ -86,32 +313,42 @@ export default function MentalScreen() {
                 key={mood}
                 style={[styles.moodOption, selectedMood === mood && styles.selectedMood]}
                 onPress={() => saveMood(mood)}
+                disabled={isSubmitting}
               >
-                <View 
-                  style={[
-                    styles.moodIconContainer, 
-                    { 
-                      backgroundColor: selectedMood === mood 
-                        ? getMoodColor(mood) 
-                        : `${getMoodColor(mood)}15` 
-                    }
-                  ]}
-                >
-                  <IconSymbol 
-                    size={28} 
-                    name={getMoodIcon(mood)} 
-                    color={selectedMood === mood ? '#fff' : getMoodColor(mood)} 
-                  />
-                </View>
-                <Text style={[
-                  styles.moodText, 
-                  selectedMood === mood && { color: getMoodColor(mood), fontWeight: '600' }
-                ]}>
-                  {mood}
-                </Text>
+                {isSubmitting && selectedMood === mood ? (
+                  <ActivityIndicator color={getMoodColor(mood)} />
+                ) : (
+                  <>
+                    <View 
+                      style={[
+                        styles.moodIconContainer, 
+                        { 
+                          backgroundColor: selectedMood === mood 
+                            ? getMoodColor(mood) 
+                            : `${getMoodColor(mood)}15` 
+                        }
+                      ]}
+                    >
+                      <IconSymbol 
+                        size={28} 
+                        name={getMoodIcon(mood)} 
+                        color={selectedMood === mood ? '#fff' : getMoodColor(mood)} 
+                      />
+                    </View>
+                    <Text style={[
+                      styles.moodText, 
+                      selectedMood === mood && { color: getMoodColor(mood), fontWeight: '600' }
+                    ]}>
+                      {mood}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             ))}
           </View>
+          {todayMood && (
+            <Text style={styles.moodRecorded}>Your mood for today has been recorded</Text>
+          )}
         </View>
 
         {/* Weekly Mood Analysis Chart */}
@@ -127,30 +364,37 @@ export default function MentalScreen() {
           </View>
           
           {/* Mood Chart */}
-          <View style={styles.chartContainer}>
-            <LineChart
-              data={mockMoodData}
-              width={screenWidth - 32}
-              height={180}
-              chartConfig={{
-                backgroundGradientFrom: '#fff',
-                backgroundGradientTo: '#f8fbff',
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(51, 51, 51, ${opacity})`,
-                style: {
-                  borderRadius: 12,
-                },
-                propsForDots: {
-                  r: '6',
-                  strokeWidth: '2',
-                  stroke: '#0084ff',
-                },
-              }}
-              bezier
-              style={styles.chart}
-            />
-          </View>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="#0084ff" />
+              <Text style={styles.loadingText}>Loading your mood data...</Text>
+            </View>
+          ) : (
+            <View style={styles.chartContainer}>
+              <LineChart
+                data={moodData}
+                width={screenWidth - 32}
+                height={180}
+                chartConfig={{
+                  backgroundGradientFrom: '#fff',
+                  backgroundGradientTo: '#f8fbff',
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(0, 132, 255, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(51, 51, 51, ${opacity})`,
+                  style: {
+                    borderRadius: 12,
+                  },
+                  propsForDots: {
+                    r: '6',
+                    strokeWidth: '2',
+                    stroke: '#0084ff',
+                  },
+                }}
+                bezier
+                style={styles.chart}
+              />
+            </View>
+          )}
 
           {/* Summary Stats */}
           <View style={styles.statsContainer}>
@@ -166,10 +410,10 @@ export default function MentalScreen() {
             
             <View style={styles.statItem}>
               <View style={styles.statIconContainer}>
-                <IconSymbol size={18} name="chart.line.uptrend.xyaxis" color="#28a745" />
+                <IconSymbol size={18} name="chart.line.uptrend.xyaxis" color={parseFloat(moodAnalysis.improvement) >= 0 ? "#28a745" : "#dc3545"} />
               </View>
               <Text style={styles.statLabel}>Weekly Change</Text>
-              <Text style={[styles.statValue, {color: '#28a745'}]}>
+              <Text style={[styles.statValue, {color: parseFloat(moodAnalysis.improvement) >= 0 ? "#28a745" : "#dc3545"}]}>
                 {moodAnalysis.improvement}
               </Text>
             </View>
@@ -323,6 +567,13 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
+  moodRecorded: {
+    fontSize: 12,
+    color: '#0084ff',
+    textAlign: 'center',
+    marginTop: 12,
+    fontWeight: '500',
+  },
   analysisContainer: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -335,6 +586,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderWidth: 1,
     borderColor: '#e6f2ff',
+  },
+  loadingContainer: {
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
   },
   sectionHeaderRow: {
     flexDirection: 'row',

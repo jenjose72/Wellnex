@@ -6,13 +6,19 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 
 type FirstAidItem = {
   id: string;
   title: string;
   category: string;
   steps: string[];
+  updated_at: string;
 };
+
+const FIRST_AID_STORAGE_KEY = 'wellnex_first_aid_data';
+const FIRST_AID_LAST_UPDATED_KEY = 'wellnex_first_aid_updated';
 
 export default function FirstAidScreen() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,19 +27,90 @@ export default function FirstAidScreen() {
   const [firstAidData, setFirstAidData] = useState<FirstAidItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    fetchFirstAidData();
+    // Check network status
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOnline(state.isConnected ?? false);
+    });
     
-    // Simulate checking if data is downloaded for offline use
-    setTimeout(() => {
-      setIsDownloaded(true);
-    }, 1000);
+    // Initialize data
+    initializeFirstAidData();
+    
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  const fetchFirstAidData = async () => {
+  const initializeFirstAidData = async () => {
     setIsLoading(true);
+    
+    try {
+      // Check if we have stored data
+      const storedData = await AsyncStorage.getItem(FIRST_AID_STORAGE_KEY);
+      const lastUpdated = await AsyncStorage.getItem(FIRST_AID_LAST_UPDATED_KEY);
+      
+      if (storedData) {
+        // We have cached data
+        const parsedData = JSON.parse(storedData);
+        setFirstAidData(parsedData);
+        setIsDownloaded(true);
+        setLastSyncTime(lastUpdated);
+        
+        // If online, check for newer data in background
+        if (isOnline) {
+          refreshFirstAidDataIfNeeded(lastUpdated);
+        }
+      } else if (isOnline) {
+        // No cached data but we're online, fetch fresh data
+        await fetchAndCacheFirstAidData();
+      } else {
+        // No cached data and offline
+        setIsDownloaded(false);
+      }
+    } catch (error) {
+      console.error('Error initializing first aid data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshFirstAidDataIfNeeded = async (lastUpdated: string | null) => {
+    if (!isOnline) return;
+    
+    try {
+      // Check if we need to refresh data
+      setIsDownloading(true);
+      
+      // In a real app, you might want to check server-side for data changes
+      // Here we're just refreshing data if it's been more than a day
+      const shouldRefresh = !lastUpdated || 
+        (new Date().getTime() - new Date(lastUpdated).getTime()) > 24 * 60 * 60 * 1000;
+      
+      if (shouldRefresh) {
+        await fetchAndCacheFirstAidData();
+      } else {
+        setIsDownloaded(true);
+        setIsDownloading(false);
+      }
+    } catch (error) {
+      console.error('Error refreshing first aid data:', error);
+      setIsDownloading(false);
+    }
+  };
+
+  const fetchAndCacheFirstAidData = async () => {
+    if (!isOnline) {
+      setIsDownloading(false);
+      return;
+    }
+    
+    setIsDownloading(true);
+    
     try {
       const { data, error } = await supabase
         .from('first_aid_guide')
@@ -42,18 +119,178 @@ export default function FirstAidScreen() {
       
       if (error) throw error;
 
+      // Create sample data if database is empty
+      const sampleData = createSampleFirstAidData();
+      const finalData = data && data.length > 0 ? data : sampleData;
+      
       // Parse steps from string to array
-      const parsedData = data.map(item => ({
+      const parsedData = finalData.map(item => ({
         ...item,
-        steps: JSON.parse(item.steps)
+        steps: typeof item.steps === 'string' ? JSON.parse(item.steps) : item.steps
       }));
       
+      // Cache data locally
+      await AsyncStorage.setItem(FIRST_AID_STORAGE_KEY, JSON.stringify(parsedData));
+      
+      const currentTime = new Date().toISOString();
+      await AsyncStorage.setItem(FIRST_AID_LAST_UPDATED_KEY, currentTime);
+      
       setFirstAidData(parsedData);
+      setLastSyncTime(currentTime);
+      setIsDownloaded(true);
     } catch (error) {
-      console.error('Error fetching first aid data:', error);
+      console.error('Error fetching and caching first aid data:', error);
+      
+      // Try to use sample data if fetch fails
+      const sampleData = createSampleFirstAidData();
+      setFirstAidData(sampleData);
+      
+      // Cache sample data as fallback
+      await AsyncStorage.setItem(FIRST_AID_STORAGE_KEY, JSON.stringify(sampleData));
+      
+      const currentTime = new Date().toISOString();
+      await AsyncStorage.setItem(FIRST_AID_LAST_UPDATED_KEY, currentTime);
+      
+      setLastSyncTime(currentTime);
+      setIsDownloaded(true);
     } finally {
-      setIsLoading(false);
+      setIsDownloading(false);
     }
+  };
+  
+  const createSampleFirstAidData = (): FirstAidItem[] => {
+    return [
+      {
+        id: '1',
+        title: 'CPR Instructions',
+        category: 'critical',
+        steps: [
+          'Check for responsiveness and call for help',
+          'Place the person on their back',
+          'Start chest compressions (30x)',
+          'Give two rescue breaths',
+          'Continue CPR until help arrives'
+        ],
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '2',
+        title: 'Choking',
+        category: 'critical',
+        steps: [
+          'Stand behind the person and lean them forward',
+          'Give 5 back blows between the shoulder blades',
+          'If unsuccessful, perform 5 abdominal thrusts',
+          'Alternate between 5 back blows and 5 abdominal thrusts',
+          'Continue until the object is dislodged or emergency help arrives'
+        ],
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '3',
+        title: 'Cuts and Scrapes',
+        category: 'injuries',
+        steps: [
+          'Clean your hands with soap and water',
+          'Stop the bleeding by applying gentle pressure',
+          'Clean the wound with clean water',
+          'Apply an antibiotic ointment',
+          'Cover with a sterile bandage'
+        ],
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '4',
+        title: 'Burns',
+        category: 'injuries',
+        steps: [
+          'Cool the burn with cool (not cold) running water for 10-15 minutes',
+          'Remove jewelry or tight items from the burned area',
+          'Don\'t break blisters',
+          'Apply a clean, dry bandage',
+          'Take an over-the-counter pain reliever if needed'
+        ],
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '5',
+        title: 'Allergic Reaction',
+        category: 'medical',
+        steps: [
+          'Identify and remove the allergen if possible',
+          'If breathing is difficult, call emergency services',
+          'Use an epinephrine auto-injector if available',
+          'Apply cool compress to itchy areas',
+          'Monitor for signs of anaphylaxis (severe reaction)'
+        ],
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '6',
+        title: 'Heart Attack',
+        category: 'critical',
+        steps: [
+          'Call emergency services immediately',
+          'Have the person sit or lie down and rest',
+          'Loosen any tight clothing',
+          'If the person is not allergic to aspirin, give them one to chew',
+          'If the person becomes unresponsive, begin CPR'
+        ],
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '7',
+        title: 'Stroke',
+        category: 'critical',
+        steps: [
+          'Remember FAST: Face drooping, Arm weakness, Speech difficulty, Time to call emergency',
+          'Note when symptoms first appeared',
+          'Don\'t give them medication, food, or drinks',
+          'If unresponsive and not breathing, begin CPR',
+          'Keep them comfortable and calm until help arrives'
+        ],
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '8',
+        title: 'Broken Bone',
+        category: 'injuries',
+        steps: [
+          'Immobilize the injured area',
+          'Apply ice wrapped in a cloth to reduce swelling',
+          'Elevate the injured limb if possible',
+          'Don\'t try to straighten a broken bone',
+          'Seek medical help immediately'
+        ],
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '9',
+        title: 'Seizure',
+        category: 'medical',
+        steps: [
+          'Clear the area around the person of anything hazardous',
+          'Gently roll them onto their side if possible',
+          'Place something soft under their head',
+          'Don\'t put anything in their mouth',
+          'Call emergency services if the seizure lasts more than 5 minutes'
+        ],
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '10',
+        title: 'Heat Stroke',
+        category: 'medical',
+        steps: [
+          'Move the person to a cool place',
+          'Remove excess clothing',
+          'Cool them with wet cloths or a cool bath',
+          'Apply ice packs to armpits, neck, and groin',
+          'Call emergency services immediately'
+        ],
+        updated_at: new Date().toISOString()
+      }
+    ];
   };
 
   const toggleExpand = (id: string) => {
@@ -67,12 +304,27 @@ export default function FirstAidScreen() {
       default: return '#34c759';
     }
   };
+  
+  const refreshData = async () => {
+    if (!isOnline) {
+      return;
+    }
+    
+    await fetchAndCacheFirstAidData();
+  };
 
   const filteredData = firstAidData
     .filter(item => 
       (selectedCategory === 'all' || item.category === selectedCategory) &&
       (item.title.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+  
+  const formatLastSyncTime = (timestamp: string | null) => {
+    if (!timestamp) return 'Never';
+    
+    const date = new Date(timestamp);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -85,7 +337,15 @@ export default function FirstAidScreen() {
             <IconSymbol size={24} name="chevron.left" color="#0084ff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>First Aid Library</Text>
-          <View style={{ width: 40 }} />
+          {isOnline && (
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={refreshData}
+              disabled={isDownloading}
+            >
+              <IconSymbol size={20} name="arrow.clockwise" color="#0084ff" />
+            </TouchableOpacity>
+          )}
         </View>
       
         <View style={styles.searchContainer}>
@@ -212,10 +472,15 @@ export default function FirstAidScreen() {
           color="#0084ff" 
         />
         <Text style={styles.offlineText}>
-          {isDownloaded 
-            ? "All first aid information available offline"
-            : "Downloading first aid information for offline use..."}
+          {isDownloading 
+            ? "Downloading first aid information for offline use..."
+            : isDownloaded 
+              ? `All first aid information available offline (Last updated: ${formatLastSyncTime(lastSyncTime)})`
+              : !isOnline 
+                ? "You're offline. Connect to download first aid information."
+                : "Tap refresh to download first aid information for offline use"}
         </Text>
+        {isDownloading && <ActivityIndicator size="small" color="#0084ff" style={{marginLeft: 8}} />}
       </BlurView>
     </SafeAreaView>
   );
@@ -244,6 +509,19 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    shadowColor: '#0084ff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  refreshButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
@@ -460,5 +738,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.1,
+    flex: 1,
   },
 });

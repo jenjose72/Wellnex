@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, Animated } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
-// Mock quotes data
-const quotes = [
+// Fallback quotes if database fetch fails
+const fallbackQuotes = [
   {
     text: "Your mental health is a priority. Your happiness is essential. Your self-care is a necessity.",
     author: "Unknown"
@@ -28,21 +30,52 @@ const quotes = [
 ];
 
 export default function MentalQuote() {
-  const [quote, setQuote] = useState(quotes[0]);
+  const [quote, setQuote] = useState(fallbackQuotes[0]);
+  const [isLoading, setIsLoading] = useState(true);
   const fadeAnim = useState(new Animated.Value(0))[0];
+  const { user } = useAuth();
   
   useEffect(() => {
-    // Get a random quote from the array
-    const randomIndex = Math.floor(Math.random() * quotes.length);
-    setQuote(quotes[randomIndex]);
-    
-    // Fade in animation
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 1000,
-      useNativeDriver: true,
-    }).start();
+    fetchQuote();
   }, []);
+  
+  const fetchQuote = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Try to fetch quotes from the database
+      const { data, error } = await supabase
+        .from('mental_quotes')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // If we have quotes in the database, use them
+      if (data && data.length > 0) {
+        const randomIndex = Math.floor(Math.random() * data.length);
+        setQuote(data[randomIndex]);
+      } else {
+        // Otherwise use fallback quotes
+        const randomIndex = Math.floor(Math.random() * fallbackQuotes.length);
+        setQuote(fallbackQuotes[randomIndex]);
+      }
+    } catch (error) {
+      console.error('Error fetching quote:', error);
+      // Use fallback quote if error
+      const randomIndex = Math.floor(Math.random() * fallbackQuotes.length);
+      setQuote(fallbackQuotes[randomIndex]);
+    } finally {
+      setIsLoading(false);
+      
+      // Fade in animation
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
