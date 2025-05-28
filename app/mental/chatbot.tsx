@@ -289,25 +289,25 @@ export default function ChatbotScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient
-        colors={['#f0f7ff', '#ffffff']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.2 }}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol size={24} name="chevron.left" color="#333" />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Mental Wellness Assistant</Text>
-          <View style={styles.statusIndicator}>
-            <View style={[styles.onlineDot, !isConnected && styles.offlineDot]} />
-            <Text style={[styles.statusText, !isConnected && styles.offlineText]}>
-              {isConnected ? 'AI Powered' : 'Basic Mode'}
-            </Text>
-          </View>
-        </View>
-        <View style={{ width: 40 }} />
-      </LinearGradient>
+  colors={['#f0f7ff', '#ffffff']}
+  start={{ x: 0, y: 0 }}
+  end={{ x: 0, y: 0.2 }}
+  style={styles.header}
+>
+  <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+    <Text style={styles.backArrow}>‹</Text>
+  </TouchableOpacity>
+  <View style={styles.headerTitleContainer}>
+    <Text style={styles.headerTitle}>Mental Wellness Assistant</Text>
+    <View style={styles.statusIndicator}>
+      <View style={[styles.onlineDot, !isConnected && styles.offlineDot]} />
+      <Text style={[styles.statusText, !isConnected && styles.offlineText]}>
+        {isConnected ? 'AI Powered' : 'Basic Mode'}
+      </Text>
+    </View>
+  </View>
+  <View style={{ width: 40 }} />
+</LinearGradient>
       
       <Animated.View style={[styles.chatContainer, { opacity: fadeAnim }]}>
         <ScrollView 
@@ -555,4 +555,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#b3d9ff',
     shadowOpacity: 0.1,
   },
+  backArrow: {
+  fontSize: 28,
+  color: '#333',
+  fontWeight: '300',
+  lineHeight: 28,
+}
 });
