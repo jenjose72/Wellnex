@@ -41,7 +41,7 @@ type UserProfile = {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [upcomingMedications, setUpcomingMedications] = useState<MedicationReminder[]>([]);
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -153,7 +153,27 @@ export default function HomeScreen() {
         return null;
     }
   };
-
+  const handleSignOut = async () => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Sign Out", 
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace('/auth/login');
+            } catch (error) {
+              console.error('Error signing out:', error);
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
   // Add mark as taken functionality
   const markMedicationAsTaken = async (med: MedicationReminder) => {
     try {
@@ -394,7 +414,7 @@ export default function HomeScreen() {
               <FontAwesome5 name="pills" size={20} color="#1971c2" />
               <Text style={styles.sectionTitle}>Upcoming Medications</Text>
             </View>
-            <Link href="/health/medications" asChild>
+            <Link href="/medication" asChild>
               <TouchableOpacity>
                 <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
@@ -410,7 +430,7 @@ export default function HomeScreen() {
             <View style={styles.emptyContainer}>
               <FontAwesome5 size={24} name="pills" color="#c5d5e6" />
               <Text style={styles.emptyText}>No upcoming medications</Text>
-              <Link href="/health/medications" asChild>
+              <Link href="/medications" asChild>
                 <TouchableOpacity style={styles.addButton}>
                   <Text style={styles.addButtonText}>Add Medication</Text>
                 </TouchableOpacity>
@@ -487,7 +507,7 @@ export default function HomeScreen() {
                     ) : null}
                   </View>
                   <View style={styles.actionButtons}>
-                    <Link href="/health/medications" asChild>
+                    <Link href="/medication" asChild>
                       <TouchableOpacity style={styles.actionButton}>
                         <MaterialIcons name="delete-outline" size={20} color="#339af0" />
                       </TouchableOpacity>
@@ -615,6 +635,17 @@ export default function HomeScreen() {
               </View>
             ))
           )}
+        </View>
+        
+        {/* Sign Out Section */}
+        <View style={styles.signOutSection}>
+          <TouchableOpacity 
+            style={styles.signOutButton}
+            onPress={handleSignOut}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#fff" />
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -1097,5 +1128,31 @@ const styles = StyleSheet.create({
     marginRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  signOutSection: {
+    marginTop: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  signOutButton: {
+    backgroundColor: '#ff3b30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    shadowColor: '#ff3b30',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    width: '100%',
+  },
+  signOutText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
   },
 });

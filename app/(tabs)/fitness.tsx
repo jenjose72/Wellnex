@@ -1,12 +1,11 @@
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import {  useRouter } from 'expo-router';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 export default function FitnessScreen() {
   const navigation = useNavigation();
@@ -162,21 +161,21 @@ export default function FitnessScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleContainer}>
-              <IconSymbol name="waveform.path.ecg" size={20} color="#1971c2" />
+              <MaterialCommunityIcons name="heart-pulse" size={20} color="#1971c2" />
               <Text style={styles.cardTitle}>BMI Calculator</Text>
             </View>
             <TouchableOpacity 
               style={styles.editButton}
               onPress={() => setModalVisible(true)}
             >
-              <IconSymbol name="pencil" size={16} color="#339af0" />
+              <MaterialIcons name="edit" size={16} color="#339af0" />
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           </View>
           
           {loading ? (
             <View style={styles.loadingContainer}>
-              <IconSymbol name="arrow.clockwise" size={24} color="#339af0" />
+              <MaterialIcons name="autorenew" size={24} color="#339af0" />
               <Text style={styles.loadingText}>Loading your data...</Text>
             </View>
           ) : (
@@ -251,7 +250,7 @@ export default function FitnessScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Update your measurements</Text>
                 <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <IconSymbol name="xmark" size={20} color="#adb5bd" />
+                  <MaterialIcons name="close" size={20} color="#adb5bd" />
                 </TouchableOpacity>
               </View>
               

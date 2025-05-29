@@ -11,9 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 
 // Initialize Gemini API
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'YOUR_API_KEY';
@@ -162,7 +162,7 @@ const MedicineConflicts = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <IconSymbol name="chevron.left" size={24} color="#1971c2" />
+            <Ionicons name="chevron-back" size={24} color="#1971c2" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Medication Conflicts</Text>
           <View style={{ width: 24 }} />
@@ -173,7 +173,7 @@ const MedicineConflicts = () => {
         {/* Overview section */}
         <View style={styles.overviewCard}>
           <View style={styles.overviewHeader}>
-            <IconSymbol name="pills.circle" size={24} color="#1971c2" />
+            <MaterialCommunityIcons name="pill" size={24} color="#1971c2" />
             <Text style={styles.overviewTitle}>Your Medications</Text>
           </View>
           
@@ -184,7 +184,7 @@ const MedicineConflicts = () => {
             </View>
           ) : medications.length === 0 ? (
             <View style={styles.emptyState}>
-              <IconSymbol name="tray" size={40} color="#74c0fc" />
+              <MaterialIcons name="inbox" size={40} color="#74c0fc" />
               <Text style={styles.emptyTitle}>No Medications Found</Text>
               <Text style={styles.emptyMessage}>
                 You don't have any medications added. Add medications in your health management section.
@@ -202,7 +202,7 @@ const MedicineConflicts = () => {
                 {medications.map((med, index) => (
                   <View key={index} style={styles.medicationItem}>
                     <View style={styles.medicationIcon}>
-                      <IconSymbol name="pill" size={16} color="#1971c2" />
+                      <MaterialCommunityIcons name="pill" size={16} color="#1971c2" />
                     </View>
                     <View style={styles.medicationDetails}>
                       <Text style={styles.medicationName}>{med.medicine_name}</Text>
@@ -233,7 +233,7 @@ const MedicineConflicts = () => {
                 onPress={() => analyzeConflicts()}
                 disabled={analyzing}
               >
-                <IconSymbol name="arrow.clockwise" size={16} color="#1971c2" />
+                <Ionicons name="refresh" size={16} color="#1971c2" />
                 <Text style={styles.refreshText}>Refresh</Text>
               </TouchableOpacity>
             </View>
@@ -245,7 +245,7 @@ const MedicineConflicts = () => {
               </View>
             ) : error ? (
               <View style={styles.errorContainer}>
-                <IconSymbol name="exclamationmark.triangle" size={32} color="#ff922b" />
+                <Ionicons name="warning" size={32} color="#ff922b" />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : conflictResults ? (
@@ -254,11 +254,11 @@ const MedicineConflicts = () => {
                   styles.summaryBanner,
                   conflictResults.hasConflicts ? styles.warningBanner : styles.safeBanner
                 ]}>
-                  <IconSymbol 
-                    name={conflictResults.hasConflicts ? "exclamationmark.triangle" : "checkmark.circle"} 
-                    size={24} 
-                    color={conflictResults.hasConflicts ? "#fff" : "#fff"} 
-                  />
+                  {conflictResults.hasConflicts ? (
+                    <Ionicons name="warning" size={24} color="#fff" />
+                  ) : (
+                    <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                  )}
                   <Text style={styles.summaryText}>{conflictResults.summary}</Text>
                 </View>
                 
@@ -281,7 +281,7 @@ const MedicineConflicts = () => {
                     </Text>
                     
                     <View style={styles.recommendationContainer}>
-                      <IconSymbol name="lightbulb" size={20} color="#1971c2" />
+                      <Ionicons name="bulb" size={20} color="#1971c2" />
                       <Text style={styles.recommendationText}>
                         {conflict.recommendation}
                       </Text>
