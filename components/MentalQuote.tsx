@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, Animated } from 'react-native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+
 // Expanded collection of mental health quotes
 const quotes = [
   {
@@ -95,6 +96,7 @@ export default function MentalQuote() {
         <View style={styles.iconContainer}>
           <FontAwesome size={22} name="quote-left" color="#0084ff" />
         </View>
+
         <Text style={styles.quoteText}>{quote.text}</Text>
         <Text style={styles.quoteAuthor}>— {quote.author}</Text>
       </LinearGradient>
@@ -116,15 +118,6 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: '#e6f2ff',
-  },
-  iconContainer: {
-    backgroundColor: '#e6f2ff',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
   },
   quoteText: {
     fontSize: 17,

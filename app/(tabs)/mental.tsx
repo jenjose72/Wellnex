@@ -1,14 +1,14 @@
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Dimensions, Alert, ActivityIndicator } from 'react-native';
-import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Link } from 'expo-router';
 import MentalQuote from '@/components/MentalQuote';
-import { LineChart } from 'react-native-chart-kit';
-import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '@/lib/supabase';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Entypo, FontAwesome, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Link } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function MentalScreen() {
   const { user } = useAuth();
@@ -295,7 +295,7 @@ export default function MentalScreen() {
       >
         <View style={styles.headerContainer}>
           <Text style={styles.headerTitle}>Mental Wellness</Text>
-          <Text style={styles.headerSubtitle}>Support for your mental health</Text>
+          <Text style={styles.headerSubtitle}>Track and optimize your mental health</Text>
         </View>
       </LinearGradient>
 
@@ -505,14 +505,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1976D2',
     marginBottom: 4,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#64B5F6',
+    fontWeight: '500',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -532,9 +534,9 @@ const styles = StyleSheet.create({
     borderColor: '#e6f2ff',
   },
   moodQuestion: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#333',
+    color: '#1976D2',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -570,7 +572,7 @@ const styles = StyleSheet.create({
   },
   moodRecorded: {
     fontSize: 12,
-    color: '#0084ff',
+    color: '#4CAF50',
     textAlign: 'center',
     marginTop: 12,
     fontWeight: '500',
@@ -615,9 +617,9 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#333',
+    color: '#1976D2',
   },
   chartContainer: {
     alignItems: 'center',
@@ -652,11 +654,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginBottom: 4,
+    fontWeight: '500',
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#1976D2',
   },
   statSeparator: {
     width: 1,
@@ -676,9 +679,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   featuresTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#333',
+    color: '#1976D2',
     marginBottom: 16,
   },
   featureContainer: {
@@ -711,13 +714,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   featureTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#333',
+    color: '#000000',
     marginBottom: 4,
   },
   featureDescription: {
     fontSize: 14,
     color: '#666',
+    fontWeight: '500',
   }
 });
