@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, KeyboardAvoidingView, Platform, Animated, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+// Replace IconSymbol with Expo Vector Icons
+import { Ionicons, FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
@@ -295,7 +296,7 @@ export default function ChatbotScreen() {
         style={styles.header}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol size={24} name="chevron.left" color="#333" />
+          <Ionicons size={24} name="chevron-back" color="#333" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Mental Wellness Assistant</Text>
@@ -373,7 +374,7 @@ export default function ChatbotScreen() {
             {isTyping ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <IconSymbol size={20} name="paperplane.fill" color="#fff" />
+              <Ionicons size={20} name="paper-plane" color="#fff" />
             )}
           </TouchableOpacity>
         </KeyboardAvoidingView>

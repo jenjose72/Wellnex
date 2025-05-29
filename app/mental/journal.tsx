@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+// Replace IconSymbol with Expo Vector Icons
+import { Ionicons, FontAwesome, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
@@ -156,13 +157,14 @@ export default function JournalScreen() {
     }
   };
   
+  // Update getMoodIcon function to use Expo Vector Icons names
   const getMoodIcon = (mood: string) => {
     switch(mood) {
-      case 'Great': return "face.smiling.fill";
-      case 'Good': return "face.dashed.fill";
-      case 'Okay': return "face.dashed";
-      case 'Bad': return "face.frown.fill";
-      default: return "face.dashed";
+      case 'Great': return "happy";
+      case 'Good': return "happy-outline";
+      case 'Okay': return "sad-outline";
+      case 'Bad': return "sad";
+      default: return "happy-outline";
     }
   };
 
@@ -186,14 +188,14 @@ export default function JournalScreen() {
         style={styles.header}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol size={24} name="chevron.left" color="#333" />
+          <Ionicons size={24} name="chevron-back" color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mood Journal</Text>
         <TouchableOpacity 
           style={[styles.addButton, showNewEntry && styles.addButtonActive]}
           onPress={() => toggleNewEntry(!showNewEntry)}
         >
-          <IconSymbol size={24} name={showNewEntry ? "xmark" : "plus"} color={showNewEntry ? "#fff" : "#0084ff"} />
+          <Ionicons size={24} name={showNewEntry ? "close" : "add"} color={showNewEntry ? "#fff" : "#0084ff"} />
         </TouchableOpacity>
       </LinearGradient>
       
@@ -229,7 +231,7 @@ export default function JournalScreen() {
                       { backgroundColor: selectedMood === mood ? getMoodColor(mood) : `${getMoodColor(mood)}15` }
                     ]}
                   >
-                    <IconSymbol 
+                    <MaterialCommunityIcons 
                       size={28} 
                       name={getMoodIcon(mood)} 
                       color={selectedMood === mood ? '#fff' : getMoodColor(mood)} 
@@ -305,7 +307,7 @@ export default function JournalScreen() {
                 colors={['#e6f2ff', '#f0f7ff']}
                 style={styles.emptyStateIcon}
               >
-                <IconSymbol size={48} name="book.fill" color="#0084ff" />
+                <FontAwesome size={48} name="book" color="#0084ff" />
               </LinearGradient>
               <Text style={styles.emptyStateText}>No journal entries yet</Text>
               <Text style={styles.emptyStateSubtext}>Tap the + button to add your first entry</Text>
@@ -322,7 +324,7 @@ export default function JournalScreen() {
                       {formatDate(entry.logged_at)}
                     </Text>
                     <View style={styles.entryMood}>
-                      <IconSymbol 
+                      <MaterialCommunityIcons 
                         size={20} 
                         name={getMoodIcon(entry.mood)} 
                         color={getMoodColor(entry.mood)} 
@@ -352,7 +354,7 @@ export default function JournalScreen() {
                     style={styles.deleteEntryButton}
                     onPress={() => deleteEntry(entry.id)}
                   >
-                    <IconSymbol size={16} name="trash" color="#ff3b30" />
+                    <MaterialIcons size={16} name="delete" color="#ff3b30" />
                     <Text style={styles.deleteEntryText}>Delete</Text>
                   </TouchableOpacity>
                 </LinearGradient>
