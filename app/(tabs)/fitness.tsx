@@ -1,12 +1,12 @@
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert } from 'react-native';
-import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import {  useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function FitnessScreen() {
   const navigation = useNavigation();
@@ -302,6 +302,7 @@ export default function FitnessScreen() {
   );
 }
 
+// Updated styles for the fitness page header to match the Emergency page
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -311,18 +312,22 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   headerContainer: {
-    paddingTop: 16,
+    paddingTop: 20,
     paddingHorizontal: 20,
+    marginBottom: 32,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 34,
+    fontWeight: '700',
     color: '#1c7ed6',
+    marginBottom: 8,
+    letterSpacing: -0.8,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#4dabf7',
-    marginTop: 4,
+    color: '#5f6368',
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
   scrollContent: {
     paddingHorizontal: 16,

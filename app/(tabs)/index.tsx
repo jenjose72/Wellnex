@@ -1,13 +1,13 @@
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
-import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/contexts/AuthContext';
-import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Link, useRouter } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Entypo, FontAwesome, FontAwesome5, Foundation, Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { format, parse, addDays, addWeeks, addMonths, isBefore, parseISO } from 'date-fns';
+import { Entypo, FontAwesome, FontAwesome5, Foundation, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { addDays, addMonths, isBefore, parseISO } from 'date-fns';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Link, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type MedicationReminder = {
   id: string;
@@ -610,7 +610,7 @@ export default function HomeScreen() {
                   <Text style={styles.contactRelation}>{contact.relation}</Text>
                 </View>
                 <TouchableOpacity style={styles.contactCallButton}>
-                  <IconSymbol size={20} name="phone.fill" color="#fff" />
+                  <MaterialIcons name="call" size={20} color="#fff" />
                 </TouchableOpacity>
               </View>
             ))
@@ -1029,17 +1029,17 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   contactCallButton: {
-    height: 40,
-    width: 40,
-    borderRadius: 20,
-    backgroundColor: '#0084ff',
+    backgroundColor: '#34c759',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0084ff',
+    shadowColor: '#34c759',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerTitleWrapper: {
     flexDirection: 'row',
