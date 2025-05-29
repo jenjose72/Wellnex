@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1976D2',
+    color: '#000000',
     marginBottom: 4,
   },
   featureDescription: {
