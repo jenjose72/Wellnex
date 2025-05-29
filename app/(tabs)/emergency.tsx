@@ -1,12 +1,12 @@
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Linking } from 'react-native';
-import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Link, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { FontAwesome5, Fontisto, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Link, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Contact = {
   id: string;
@@ -99,11 +99,17 @@ export default function EmergencyScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Emergency Services</Text>
-          <Text style={styles.headerSubtitle}>Quick access to emergency assistance</Text>
-        </View>
+      <LinearGradient
+        colors={['#e3f2fd', '#f8f9fb']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.4 }}
+        style={styles.backgroundGradient}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.headerContainer}>
+            <Text style={styles.headerTitle}>Emergency</Text>
+            <Text style={styles.headerSubtitle}>Track and access emergency services</Text>
+          </View>
 
         <LinearGradient
           colors={['#ff3b30', '#ff5e3a']}
@@ -199,7 +205,7 @@ export default function EmergencyScreen() {
                   style={styles.callButton}
                   onPress={() => handleCall(contact.phone_number)}
                 >
-                  <IconSymbol size={20} name="phone.fill" color="#fff" />
+                  <MaterialIcons name="call" size={20} color="#fff" />
                 </TouchableOpacity>
               </View>
             ))
@@ -242,6 +248,7 @@ export default function EmergencyScreen() {
           )}
         </View>
       </ScrollView>
+    </LinearGradient>
     </SafeAreaView>
   );
 }
@@ -249,27 +256,31 @@ export default function EmergencyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+  },
+  backgroundGradient: {
+    flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 80,
   },
   headerContainer: {
-    marginTop: 16,
-    marginBottom: 24,
+    marginTop: 20,
+    marginBottom: 32,
+    paddingHorizontal: 4,
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#222',
-    letterSpacing: -0.5,
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#1a73e8',
+    marginBottom: 8,
+    letterSpacing: -0.8,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
-    marginTop: 4,
-    letterSpacing: 0.2,
+    color: '#5f6368',
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
   sosButtonGradient: {
     borderRadius: 40,
@@ -432,13 +443,13 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   callButton: {
-    backgroundColor: '#0084ff',
+    backgroundColor: '#34c759',
     width: 44,
     height: 44,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0084ff',
+    shadowColor: '#34c759',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,

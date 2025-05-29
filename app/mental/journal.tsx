@@ -1,11 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Animated, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { FontAwesome6 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type JournalEntry = {
   id: string;
@@ -157,13 +158,13 @@ export default function JournalScreen() {
   };
   
   const getMoodIcon = (mood: string) => {
-    switch(mood) {
-      case 'Great': return "face.smiling.fill";
-      case 'Good': return "face.dashed.fill";
-      case 'Okay': return "face.dashed";
-      case 'Bad': return "face.frown.fill";
-      default: return "face.dashed";
-    }
+  switch(mood) {
+    case 'Great': return "face-smile-beam";
+    case 'Good': return "face-smile";
+    case 'Okay': return "face-meh";
+    case 'Bad': return "face-sad-tear";
+    default: return "face-meh";
+  }
   };
 
   const formatDate = (dateString: string) => {
@@ -186,14 +187,16 @@ export default function JournalScreen() {
         style={styles.header}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol size={24} name="chevron.left" color="#333" />
+          <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mood Journal</Text>
         <TouchableOpacity 
           style={[styles.addButton, showNewEntry && styles.addButtonActive]}
           onPress={() => toggleNewEntry(!showNewEntry)}
         >
-          <IconSymbol size={24} name={showNewEntry ? "xmark" : "plus"} color={showNewEntry ? "#fff" : "#0084ff"} />
+          <Text style={[styles.addButtonText, showNewEntry && styles.addButtonTextActive]}>
+            {showNewEntry ? "×" : "+"}
+          </Text>
         </TouchableOpacity>
       </LinearGradient>
       
@@ -215,36 +218,36 @@ export default function JournalScreen() {
           <Text style={styles.newEntryTitle}>New Journal Entry</Text>
           
           <View style={styles.moodSelector}>
-            <Text style={styles.moodLabel}>How are you feeling?</Text>
-            <View style={styles.moodOptions}>
-              {['Great', 'Good', 'Okay', 'Bad'].map((mood) => (
-                <TouchableOpacity 
-                  key={mood}
-                  style={[styles.moodOption, selectedMood === mood && styles.selectedMood]}
-                  onPress={() => setSelectedMood(mood)}
-                >
-                  <View 
-                    style={[
-                      styles.moodIconContainer, 
-                      { backgroundColor: selectedMood === mood ? getMoodColor(mood) : `${getMoodColor(mood)}15` }
-                    ]}
-                  >
-                    <IconSymbol 
-                      size={28} 
-                      name={getMoodIcon(mood)} 
-                      color={selectedMood === mood ? '#fff' : getMoodColor(mood)} 
-                    />
-                  </View>
-                  <Text style={[
-                    styles.moodText, 
-                    selectedMood === mood && { color: getMoodColor(mood), fontWeight: '600' }
-                  ]}>
-                    {mood}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+  <Text style={styles.moodLabel}>How are you feeling?</Text>
+  <View style={styles.moodOptions}>
+    {['Great', 'Good', 'Okay', 'Bad'].map((mood) => (
+      <TouchableOpacity 
+        key={mood}
+        style={[styles.moodOption, selectedMood === mood && styles.selectedMood]}
+        onPress={() => setSelectedMood(mood)}
+      >
+        <View 
+          style={[
+            styles.moodIconContainer, 
+            { backgroundColor: selectedMood === mood ? getMoodColor(mood) : `${getMoodColor(mood)}15` }
+          ]}
+        >
+          <FontAwesome6 
+            size={28} 
+            name={getMoodIcon(mood)} 
+            color={selectedMood === mood ? '#fff' : getMoodColor(mood)} 
+          />
+        </View>
+        <Text style={[
+          styles.moodText, 
+          selectedMood === mood && { color: getMoodColor(mood), fontWeight: '600' }
+        ]}>
+          {mood}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </View>
+</View>
 
           <View style={styles.energyContainer}>
             <Text style={styles.energyLabel}>Energy Level: {energyLevel}/10</Text>
@@ -312,52 +315,52 @@ export default function JournalScreen() {
             </View>
           ) : (
             entries.map(entry => (
-              <View key={entry.id} style={styles.entryCard}>
-                <LinearGradient
-                  colors={['#ffffff', '#f8fbff']}
-                  style={styles.entryGradient}
-                >
-                  <View style={styles.entryHeader}>
-                    <Text style={styles.entryDate}>
-                      {formatDate(entry.logged_at)}
-                    </Text>
-                    <View style={styles.entryMood}>
-                      <IconSymbol 
-                        size={20} 
-                        name={getMoodIcon(entry.mood)} 
-                        color={getMoodColor(entry.mood)} 
-                      />
-                      <Text style={[styles.entryMoodText, { color: getMoodColor(entry.mood) }]}>
-                        {entry.mood}
-                      </Text>
-                      {entry.energy_level && (
-                        <Text style={styles.energyText}>• Energy: {entry.energy_level}/10</Text>
-                      )}
-                    </View>
-                  </View>
-                  
-                  <Text style={styles.entryText}>{entry.note}</Text>
-                  
-                  {entry.tags && entry.tags.length > 0 && (
-                    <View style={styles.tagContainer}>
-                      {entry.tags.map(tag => (
-                        <View key={tag} style={styles.tag}>
-                          <Text style={styles.tagText}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
+  <View key={entry.id} style={styles.entryCard}>
+    <LinearGradient
+      colors={['#ffffff', '#f8fbff']}
+      style={styles.entryGradient}
+    >
+      <View style={styles.entryHeader}>
+        <Text style={styles.entryDate}>
+          {formatDate(entry.logged_at)}
+        </Text>
+        <View style={styles.entryMood}>
+          <FontAwesome6 
+            size={20} 
+            name={getMoodIcon(entry.mood)} 
+            color={getMoodColor(entry.mood)} 
+          />
+          <Text style={[styles.entryMoodText, { color: getMoodColor(entry.mood) }]}>
+            {entry.mood}
+          </Text>
+          {entry.energy_level && (
+            <Text style={styles.energyText}>• Energy: {entry.energy_level}/10</Text>
+          )}
+        </View>
+      </View>
+      
+      <Text style={styles.entryText}>{entry.note}</Text>
+      
+      {entry.tags && entry.tags.length > 0 && (
+        <View style={styles.tagContainer}>
+          {entry.tags.map(tag => (
+            <View key={tag} style={styles.tag}>
+              <Text style={styles.tagText}>{tag}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
-                  <TouchableOpacity 
-                    style={styles.deleteEntryButton}
-                    onPress={() => deleteEntry(entry.id)}
-                  >
-                    <IconSymbol size={16} name="trash" color="#ff3b30" />
-                    <Text style={styles.deleteEntryText}>Delete</Text>
-                  </TouchableOpacity>
-                </LinearGradient>
-              </View>
-            ))
+      <TouchableOpacity 
+        style={styles.deleteEntryButton}
+        onPress={() => deleteEntry(entry.id)}
+      >
+        <IconSymbol size={16} name="trash" color="#ff3b30" />
+        <Text style={styles.deleteEntryText}>Delete</Text>
+      </TouchableOpacity>
+    </LinearGradient>
+  </View>
+))
           )}
         </ScrollView>
       )}
@@ -640,5 +643,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  backArrow: {
+    fontSize: 28,
+    color: '#333',
+    fontWeight: '300',
+    lineHeight: 28,
+  },
+  addButtonText: {
+    fontSize: 24,
+    color: '#0084ff',
+    fontWeight: '300',
+    lineHeight: 24,
+  },
+  addButtonTextActive: {
+    color: '#fff',
   },
 });
