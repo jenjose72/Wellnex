@@ -1,13 +1,13 @@
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { Entypo, FontAwesome, FontAwesome5, Foundation, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { addDays, addMonths, isBefore, parseISO } from 'date-fns';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Link, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/contexts/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Link, useRouter } from 'expo-router';
+import { supabase } from '@/lib/supabase';
+import { Entypo, FontAwesome, FontAwesome5, Foundation, Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { format, parse, addDays, addWeeks, addMonths, isBefore, parseISO } from 'date-fns';
 
 type MedicationReminder = {
   id: string;
@@ -41,7 +41,7 @@ type UserProfile = {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [upcomingMedications, setUpcomingMedications] = useState<MedicationReminder[]>([]);
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -142,18 +142,38 @@ export default function HomeScreen() {
   const getRepeatPatternIcon = (pattern) => {
     switch(pattern) {
       case 'Daily':
-        return <MaterialCommunityIcons name="calendar-refresh" size={16} color="#1a73e8" />;
+        return <MaterialCommunityIcons name="calendar-refresh" size={16} color="#228be6" />;
       case 'Weekly':
-        return <MaterialCommunityIcons name="calendar-week" size={16} color="#1a73e8" />;
+        return <MaterialCommunityIcons name="calendar-week" size={16} color="#228be6" />;
       case 'Monthly':
-        return <MaterialCommunityIcons name="calendar-month" size={16} color="#1a73e8" />;
+        return <MaterialCommunityIcons name="calendar-month" size={16} color="#228be6" />;
       case 'As needed':
-        return <Ionicons name="timer-outline" size={16} color="#1a73e8" />;
+        return <Ionicons name="timer-outline" size={16} color="#228be6" />;
       default:
         return null;
     }
   };
-
+  const handleSignOut = async () => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Sign Out", 
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace('/auth/login');
+            } catch (error) {
+              console.error('Error signing out:', error);
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
   // Add mark as taken functionality
   const markMedicationAsTaken = async (med: MedicationReminder) => {
     try {
@@ -280,20 +300,15 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient
-        colors={['#e3f2fd', '#f8f9fb']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.4 }}
-        style={styles.backgroundGradient}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Header with compact SOS */}
-          <View style={styles.headerContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Header with compact SOS */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
             <View>
               <Text style={styles.headerTitle}>
                 Welcome{username ? `, ${username}` : ' to Wellnex'}
               </Text>
-              <Text style={styles.headerSubtitle}>Your personal health companion</Text>
+              <Text style={styles.headerSubtitle}>Your health companion</Text>
             </View>
             {/* Compact SOS Button */}
             <TouchableOpacity style={styles.sosButton} onPress={handleSOS}>
@@ -303,316 +318,336 @@ export default function HomeScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.sosButtonInner}
               >
-                <FontAwesome size={18} name="phone" color="#fff" />
+                <FontAwesome size={20} name="phone" color="#fff" />
                 <Text style={styles.sosText}>SOS</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* User Profile Card */}
-          <View style={styles.cardContainer}>
-            <LinearGradient
-              colors={['#1a73e8', '#4285f4']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.profileGradient}
-            >
-              {isLoadingProfile ? (
-                <View style={styles.profileLoadingContainer}>
-                  <ActivityIndicator size="small" color="#fff" />
-                  <Text style={styles.loadingProfileText}>Loading your profile...</Text>
+        {/* User Profile Card */}
+        <View style={styles.profileCard}>
+          <LinearGradient
+            colors={['#0984e3', '#0097e6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.profileGradient}
+          >
+            {isLoadingProfile ? (
+              <View style={styles.profileLoadingContainer}>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.loadingProfileText}>Loading your profile...</Text>
+              </View>
+            ) : (
+              <>
+                <View style={styles.profileHeader}>
+                  <View style={styles.avatarContainer}>
+                    {userProfile?.avatar_url ? (
+                      <Image 
+                        source={{ uri: userProfile.avatar_url }}
+                        style={styles.avatar}
+                      />
+                    ) : (
+                      <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarText}>
+                          {userProfile?.name?.charAt(0) || username?.charAt(0) || '?'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.profileInfo}>
+                    <Text style={styles.profileName}>
+                      {userProfile?.name || username || 'Your Profile'}
+                    </Text>
+                    <Text style={styles.profileDetails}>
+                      {userProfile?.age ? `${userProfile.age} years` : ''}{' '}
+                      {userProfile?.gender ? `• ${userProfile.gender}` : ''}
+                    </Text>
+                  </View>
+                  <Link href="/profile/edit" asChild>
+                    <TouchableOpacity style={styles.editButton}>
+                      <Foundation size={18} name="pencil" color="#fff" />
+                    </TouchableOpacity>
+                  </Link>
                 </View>
-              ) : (
-                <>
-                  <View style={styles.profileHeader}>
-                    <View style={styles.avatarContainer}>
-                      {userProfile?.avatar_url ? (
-                        <Image 
-                          source={{ uri: userProfile.avatar_url }}
-                          style={styles.avatar}
-                        />
-                      ) : (
-                        <View style={styles.avatarPlaceholder}>
-                          <Text style={styles.avatarText}>
-                            {userProfile?.name?.charAt(0) || username?.charAt(0) || '?'}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.profileInfo}>
-                      <Text style={styles.profileName}>
-                        {userProfile?.name || username || 'Your Profile'}
-                      </Text>
-                      <Text style={styles.profileDetails}>
-                        {userProfile?.age ? `${userProfile.age} years` : ''}{' '}
-                        {userProfile?.gender ? `• ${userProfile.gender}` : ''}
-                      </Text>
-                    </View>
-                    <Link href="/profile/edit" asChild>
-                      <TouchableOpacity style={styles.editButton}>
-                        <Foundation size={18} name="pencil" color="#fff" />
-                      </TouchableOpacity>
-                    </Link>
+                
+                <View style={styles.profileStats}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Blood Group</Text>
+                    <Text style={styles.statValue}>
+                      {userProfile?.blood_group || 'Add'}
+                    </Text>
                   </View>
-                  
-                  <View style={styles.profileStats}>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Blood Group</Text>
-                      <Text style={styles.statValue}>
-                        {userProfile?.blood_group || 'Add'}
-                      </Text>
-                    </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Height</Text>
-                      <Text style={styles.statValue}>
-                        {userProfile?.height_cm ? `${userProfile.height_cm} cm` : 'Add'}
-                      </Text>
-                    </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Weight</Text>
-                      <Text style={styles.statValue}>
-                        {userProfile?.weight_kg ? `${userProfile.weight_kg} kg` : 'Add'}
-                      </Text>
-                    </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Height</Text>
+                    <Text style={styles.statValue}>
+                      {userProfile?.height_cm ? `${userProfile.height_cm} cm` : 'Add'}
+                    </Text>
                   </View>
-                  
-                  {(!userProfile?.blood_group || !userProfile?.height_cm || !userProfile?.weight_kg) && (
-                    <Link href="/profile/edit" asChild>
-                      <TouchableOpacity style={styles.completeProfileButton}>
-                        <Text style={styles.completeProfileText}>Complete your medical profile</Text>
-                        <IconSymbol size={16} name="chevron.right" color="#fff" />
-                      </TouchableOpacity>
-                    </Link>
-                  )}
-                </>
-              )}
-            </LinearGradient>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Weight</Text>
+                    <Text style={styles.statValue}>
+                      {userProfile?.weight_kg ? `${userProfile.weight_kg} kg` : 'Add'}
+                    </Text>
+                  </View>
+                </View>
+                
+                {(!userProfile?.blood_group || !userProfile?.height_cm || !userProfile?.weight_kg) && (
+                  <Link href="/profile/edit" asChild>
+                    <TouchableOpacity style={styles.completeProfileButton}>
+                      <Text style={styles.completeProfileText}>Complete your medical profile</Text>
+                      <IconSymbol size={16} name="chevron.right" color="#fff" />
+                    </TouchableOpacity>
+                  </Link>
+                )}
+              </>
+            )}
+          </LinearGradient>
+        </View>
+
+        {/* Upcoming Medications */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <FontAwesome5 name="pills" size={20} color="#1971c2" />
+              <Text style={styles.sectionTitle}>Upcoming Medications</Text>
+            </View>
+            <Link href="/medication" asChild>
+              <TouchableOpacity>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </Link>
           </View>
 
-          {/* Upcoming Medications */}
-          <View style={styles.cardContainer}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.sectionTitle}>Upcoming Medications</Text>
-              <Link href="/health/medications" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.viewAllText}>View All</Text>
+          {isLoadingMeds ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#0084ff" />
+              <Text style={styles.loadingText}>Loading medications...</Text>
+            </View>
+          ) : upcomingMedications.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <FontAwesome5 size={24} name="pills" color="#c5d5e6" />
+              <Text style={styles.emptyText}>No upcoming medications</Text>
+              <Link href="/medications" asChild>
+                <TouchableOpacity style={styles.addButton}>
+                  <Text style={styles.addButtonText}>Add Medication</Text>
                 </TouchableOpacity>
               </Link>
             </View>
-
-            {isLoadingMeds ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#1a73e8" />
-                <Text style={styles.loadingText}>Loading medications...</Text>
-              </View>
-            ) : upcomingMedications.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <FontAwesome5 size={28} name="pills" color="#1a73e8" />
-                <Text style={styles.emptyText}>No upcoming medications</Text>
-                <Link href="/health/medications" asChild>
-                  <TouchableOpacity style={styles.addButton}>
-                    <Text style={styles.addButtonText}>Add Medication</Text>
-                  </TouchableOpacity>
-                </Link>
-              </View>
-            ) : (
-              // Display just the first medication with enhanced styling
-              upcomingMedications.slice(0, 1).map((med) => {
-                // Format the next scheduled date for display
-                let nextDoseText = 'Not scheduled';
-                let isOverdue = false;
-                
-                if (med.next_scheduled) {
-                  try {
-                    const nextDate = parseISO(med.next_scheduled);
-                    const now = new Date();
-                    isOverdue = isBefore(nextDate, now);
-                    
-                    // Show date only if it's not today
-                    const isToday = nextDate.getDate() === now.getDate() && 
-                                    nextDate.getMonth() === now.getMonth() &&
-                                    nextDate.getFullYear() === now.getFullYear();
-                                    
-                    if (isToday) {
-                      nextDoseText = `Today at ${med.time}`;
-                    } else {
-                      // Format the date to a user-friendly string
-                      const day = nextDate.getDate();
-                      const month = nextDate.toLocaleString('default', { month: 'short' });
-                      nextDoseText = `${day} ${month} at ${med.time}`;
-                    }
-                  } catch (parseError) {
-                    console.error('Error parsing next scheduled date:', parseError);
-                    nextDoseText = 'Schedule error';
+          ) : (
+            // Display just the first medication with the new styling from medication.tsx
+            upcomingMedications.slice(0, 1).map((med) => {
+              // Format the next scheduled date for display
+              let nextDoseText = 'Not scheduled';
+              let isOverdue = false;
+              
+              if (med.next_scheduled) {
+                try {
+                  const nextDate = parseISO(med.next_scheduled);
+                  const now = new Date();
+                  isOverdue = isBefore(nextDate, now);
+                  
+                  // Show date only if it's not today
+                  const isToday = nextDate.getDate() === now.getDate() && 
+                                  nextDate.getMonth() === now.getMonth() &&
+                                  nextDate.getFullYear() === now.getFullYear();
+                                  
+                  if (isToday) {
+                    nextDoseText = `Today at ${med.time}`;
+                  } else {
+                    // Format the date to a user-friendly string
+                    const day = nextDate.getDate();
+                    const month = nextDate.toLocaleString('default', { month: 'short' });
+                    nextDoseText = `${day} ${month} at ${med.time}`;
                   }
-                } else if (med.repeat_pattern === 'As needed') {
-                  nextDoseText = 'Take as needed';
+                } catch (parseError) {
+                  console.error('Error parsing next scheduled date:', parseError);
+                  nextDoseText = 'Schedule error';
                 }
-                
-                return (
-                  <View key={med.id} style={styles.medicationCard}>
-                    <View style={[
-                      styles.medicationTime,
-                      isOverdue ? styles.medicationTimeOverdue : null
+              } else if (med.repeat_pattern === 'As needed') {
+                nextDoseText = 'Take as needed';
+              }
+              
+              return (
+                <View key={med.id} style={styles.medicationCard}>
+                  <View style={[
+                    styles.medicationTime,
+                    isOverdue ? styles.medicationTimeOverdue : null
+                  ]}>
+                    {isOverdue ? (
+                      <Ionicons name="warning" size={18} color="#ff6b6b" />
+                    ) : (
+                      <Ionicons name="time" size={18} color="#1971c2" />
+                    )}
+                    <Text style={[
+                      styles.timeText, 
+                      isOverdue ? styles.timeTextOverdue : null
                     ]}>
-                      {isOverdue ? (
-                        <Ionicons name="warning" size={18} color="#ff6b6b" />
-                      ) : (
-                        <Ionicons name="time" size={18} color="#1a73e8" />
-                      )}
-                      <Text style={[
-                        styles.timeText, 
-                        isOverdue ? styles.timeTextOverdue : null
-                      ]}>
-                        {nextDoseText}
-                      </Text>
-                    </View>
-                    <View style={styles.medicationDetails}>
-                      <Text style={styles.medicationName}>{med.medicine_name}</Text>
-                      <Text style={styles.medicationDosage}>{med.dosage}</Text>
-                      {med.repeat_pattern ? (
-                        <View style={styles.repeatPatternRow}>
-                          {getRepeatPatternIcon(med.repeat_pattern)}
-                          <Text style={styles.repeatPatternText}>
-                            {med.repeat_pattern}
-                          </Text>
-                        </View>
-                      ) : null}
-                      {med.notes ? (
-                        <View style={styles.notesRow}>
-                          <MaterialIcons name="notes" size={16} color="#adb5bd" />
-                          <Text style={styles.notesText}>{med.notes}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <View style={styles.actionButtons}>
-                      <Link href="/health/medications" asChild>
-                        <TouchableOpacity style={styles.actionButton}>
-                          <MaterialIcons name="delete-outline" size={20} color="#1a73e8" />
-                        </TouchableOpacity>
-                      </Link>
-                      <TouchableOpacity 
-                        style={[styles.actionButton, styles.checkButton]}
-                        onPress={() => {
-                          Alert.alert(
-                            "Mark as Taken",
-                            `Mark ${med.medicine_name} as taken?`,
-                            [
-                              { text: "Cancel", style: "cancel" },
-                              { 
-                                text: "Confirm", 
-                                onPress: () => markMedicationAsTaken(med)
-                              }
-                            ]
-                          );
-                        }}
-                      >
-                        <Ionicons name="checkmark" size={18} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
+                      {nextDoseText}
+                    </Text>
                   </View>
-                );
-              })
-            )}
-          </View>
+                  <View style={styles.medicationDetails}>
+                    <Text style={styles.medicationName}>{med.medicine_name}</Text>
+                    <Text style={styles.medicationDosage}>{med.dosage}</Text>
+                    {med.repeat_pattern ? (
+                      <View style={styles.repeatPatternRow}>
+                        {getRepeatPatternIcon(med.repeat_pattern)}
+                        <Text style={styles.repeatPatternText}>
+                          {med.repeat_pattern}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {med.notes ? (
+                      <View style={styles.notesRow}>
+                        <MaterialIcons name="notes" size={16} color="#adb5bd" />
+                        <Text style={styles.notesText}>{med.notes}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <View style={styles.actionButtons}>
+                    <Link href="/medication" asChild>
+                      <TouchableOpacity style={styles.actionButton}>
+                        <MaterialIcons name="delete-outline" size={20} color="#339af0" />
+                      </TouchableOpacity>
+                    </Link>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.checkButton]}
+                      onPress={() => {
+                        Alert.alert(
+                          "Mark as Taken",
+                          `Mark ${med.medicine_name} as taken?`,
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            { 
+                              text: "Confirm", 
+                              onPress: () => markMedicationAsTaken(med)
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <Ionicons name="checkmark" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
 
-          {/* Quick Access */}
-          <View style={styles.cardContainer}>
-            <View style={styles.cardHeader}>
+        {/* Quick Access */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <Ionicons size={22} name="sparkles" color="#0084ff" />
               <Text style={styles.sectionTitle}>Quick Access</Text>
             </View>
-            
-            <View style={styles.quickAccessGrid}>
-              {/* Mental Health Chatbot */}
-              <Link href="/mental/chatbot" asChild>
-                <TouchableOpacity style={styles.quickAccessCard}>
-                  <View style={[styles.quickAccessIcon, { backgroundColor: '#e3f2fd' }]}>
-                    <Entypo size={24} name="chat" color="#1a73e8" />
-                  </View>
-                  <Text style={styles.quickAccessText}>Mental Health Assistant</Text>
-                </TouchableOpacity>
-              </Link>
-
-              {/* Emergency Contacts */}
-              <Link href="/emergency/contacts" asChild>
-                <TouchableOpacity style={styles.quickAccessCard}>
-                  <View style={[styles.quickAccessIcon, { backgroundColor: '#ffebee' }]}>
-                    <MaterialIcons size={24} name="contact-emergency" color="#f44336" />
-                  </View>
-                  <Text style={styles.quickAccessText}>Emergency Contacts</Text>
-                </TouchableOpacity>
-              </Link>
-
-              {/* Nearby Clinics */}
-              <Link href="/emergency/nearby" asChild>
-                <TouchableOpacity style={styles.quickAccessCard}>
-                  <View style={[styles.quickAccessIcon, { backgroundColor: '#e8f5e8' }]}>
-                    <FontAwesome5 size={24} name="hospital" color="#4caf50" />
-                  </View>
-                  <Text style={styles.quickAccessText}>Nearby Clinics</Text>
-                </TouchableOpacity>
-              </Link>
-
-              {/* Mood Journal */}
-              <Link href="/mental/journal" asChild>
-                <TouchableOpacity style={styles.quickAccessCard}>
-                  <View style={[styles.quickAccessIcon, { backgroundColor: '#fff3e0' }]}>
-                    <Entypo size={24} name="open-book" color="#ff9800" />
-                  </View>
-                  <Text style={styles.quickAccessText}>Mood Journal</Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
           </View>
-
-          {/* Emergency Contacts Preview */}
-          <View style={styles.cardContainer}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.sectionTitle}>Emergency Contacts</Text>
-              <Link href="/emergency/contacts" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.viewAllText}>View All</Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
-
-            {isLoadingContacts ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#1a73e8" />
-                <Text style={styles.loadingText}>Loading contacts...</Text>
-              </View>
-            ) : emergencyContacts.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <MaterialIcons size={28} name="contact-emergency" color="#1a73e8" />
-                <Text style={styles.emptyText}>No emergency contacts</Text>
-                <Link href="/emergency/contacts" asChild>
-                  <TouchableOpacity style={styles.addButton}>
-                    <Text style={styles.addButtonText}>Add Contact</Text>
-                  </TouchableOpacity>
-                </Link>
-              </View>
-            ) : (
-              emergencyContacts.map((contact) => (
-                <View key={contact.id} style={styles.contactCard}>
-                  <View style={styles.contactAvatar}>
-                    <Text style={styles.contactInitial}>{contact.name.charAt(0)}</Text>
-                  </View>
-                  <View style={styles.contactInfo}>
-                    <Text style={styles.contactName}>{contact.name}</Text>
-                    <Text style={styles.contactPhone}>{contact.phone_number}</Text>
-                    <Text style={styles.contactRelation}>{contact.relation}</Text>
-                  </View>
-                  <TouchableOpacity style={styles.contactCallButton}>
-                    <MaterialIcons name="call" size={20} color="#fff" />
-                  </TouchableOpacity>
+          
+          <View style={styles.quickAccessGrid}>
+            {/* Mental Health Chatbot */}
+            <Link href="/mental/chatbot" asChild>
+              <TouchableOpacity style={styles.quickAccessCard}>
+                <View style={[styles.quickAccessIcon, { backgroundColor: '#e6f2ff' }]}>
+                  <Entypo size={24} name="chat" color="#0084ff" />
                 </View>
-              ))
-            )}
+                <Text style={styles.quickAccessText}>Mental Health Assistant</Text>
+              </TouchableOpacity>
+            </Link>
+
+            {/* Emergency Contacts */}
+            <Link href="/emergency/contacts" asChild>
+              <TouchableOpacity style={styles.quickAccessCard}>
+                <View style={[styles.quickAccessIcon, { backgroundColor: '#ffe6e6' }]}>
+                  <MaterialIcons size={24} name="contact-emergency" color="#ff3b30" />
+                </View>
+                <Text style={styles.quickAccessText}>Emergency Contacts</Text>
+              </TouchableOpacity>
+            </Link>
+
+            {/* Nearby Clinics */}
+            <Link href="/emergency/nearby" asChild>
+              <TouchableOpacity style={styles.quickAccessCard}>
+                <View style={[styles.quickAccessIcon, { backgroundColor: '#e6ffed' }]}>
+                  <FontAwesome5 size={24} name="hospital" color="#34c759" />
+                </View>
+                <Text style={styles.quickAccessText}>Nearby Clinics</Text>
+              </TouchableOpacity>
+            </Link>
+
+            {/* Mood Journal */}
+            <Link href="/mental/journal" asChild>
+              <TouchableOpacity style={styles.quickAccessCard}>
+                <View style={[styles.quickAccessIcon, { backgroundColor: '#fff0e6' }]}>
+                  <Entypo size={24} name="open-book" color="#ff9500" />
+                </View>
+                <Text style={styles.quickAccessText}>Mood Journal</Text>
+              </TouchableOpacity>
+            </Link>
           </View>
-        </ScrollView>
-      </LinearGradient>
+        </View>
+
+        {/* Emergency Contacts Preview */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <MaterialIcons size={22} name="contact-emergency" color="#0084ff" />
+              <Text style={styles.sectionTitle}>Emergency Contacts</Text>
+            </View>
+            <Link href="/emergency/contacts" asChild>
+              <TouchableOpacity>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+
+          {isLoadingContacts ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#0084ff" />
+              <Text style={styles.loadingText}>Loading contacts...</Text>
+            </View>
+          ) : emergencyContacts.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <MaterialIcons size={24} name="contact-emergency" color="#c5d5e6" />
+              <Text style={styles.emptyText}>No emergency contacts</Text>
+              <Link href="/emergency/contacts" asChild>
+                <TouchableOpacity style={styles.addButton}>
+                  <Text style={styles.addButtonText}>Add Contact</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
+          ) : (
+            emergencyContacts.map((contact) => (
+              <View key={contact.id} style={styles.contactCard}>
+                <View style={styles.contactAvatar}>
+                  <Text style={styles.contactInitial}>{contact.name.charAt(0)}</Text>
+                </View>
+                <View style={styles.contactInfo}>
+                  <Text style={styles.contactName}>{contact.name}</Text>
+                  <Text style={styles.contactPhone}>{contact.phone_number}</Text>
+                  <Text style={styles.contactRelation}>{contact.relation}</Text>
+                </View>
+                <TouchableOpacity style={styles.contactCallButton}>
+                  <IconSymbol size={20} name="phone.fill" color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+        
+        {/* Sign Out Section */}
+        <View style={styles.signOutSection}>
+          <TouchableOpacity 
+            style={styles.signOutButton}
+            onPress={handleSignOut}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#fff" />
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -620,143 +655,131 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  backgroundGradient: {
-    flex: 1,
+    backgroundColor: '#f5f9fc',
   },
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 80,
   },
   headerContainer: {
-    marginTop: 20,
-    marginBottom: 32,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 4,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1a73e8',
-    marginBottom: 6,
-    letterSpacing: -0.6,
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#333',
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#5f6368',
-    fontWeight: '400',
-    letterSpacing: 0.1,
+    color: '#666',
+    marginTop: 2,
   },
   sosButton: {
     shadowColor: '#ff3b30',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   sosButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   sosText: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: 'bold',
     fontSize: 14,
     marginLeft: 6,
-    letterSpacing: 0.5,
   },
-  cardContainer: {
+  profileCard: {
     marginBottom: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#0984e3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   profileGradient: {
     padding: 20,
     borderRadius: 16,
-    shadowColor: '#1a73e8',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 6,
   },
   profileLoadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 120,
+    height: 100,
   },
   loadingProfileText: {
     color: '#fff',
     marginTop: 12,
-    fontSize: 16,
-    fontWeight: '500',
   },
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
   },
   avatarContainer: {
-    marginRight: 16,
+    marginRight: 14,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 3,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
     borderColor: '#fff',
   },
   avatarPlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: '#fff',
   },
   avatarText: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#fff',
   },
   profileInfo: {
     flex: 1,
   },
   profileName: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 6,
-    letterSpacing: -0.5,
+    marginBottom: 4,
   },
   profileDetails: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontWeight: '400',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
   },
   profileStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
+    marginTop: 20,
     padding: 16,
   },
   statItem: {
@@ -765,17 +788,16 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   statLabel: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 6,
-    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 4,
   },
   statValue: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#fff',
   },
   completeProfileButton: {
@@ -801,6 +823,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 8,
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: '#0084ff',
+    fontWeight: '500',
   },
   loadingContainer: {
     backgroundColor: '#fff',
@@ -1023,17 +1060,17 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   contactCallButton: {
-    backgroundColor: '#34c759',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    height: 40,
+    width: 40,
+    borderRadius: 20,
+    backgroundColor: '#0084ff',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#34c759',
+    shadowColor: '#0084ff',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
   },
   headerTitleWrapper: {
     flexDirection: 'row',
@@ -1092,28 +1129,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  cardHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 12,
-},
-sectionTitleContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  flex: 1,
-},
-sectionTitle: {
-  fontSize: 18,
-  fontWeight: '600',
-  color: '#333',
-  marginLeft: 8,
-  flexShrink: 1,
-},
-viewAllText: {
-  fontSize: 14,
-  color: '#0084ff',
-  fontWeight: '500',
-  marginLeft: 8, // Add some spacing if needed
-},
+  signOutSection: {
+    marginTop: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  signOutButton: {
+    backgroundColor: '#ff3b30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    shadowColor: '#ff3b30',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    width: '100%',
+  },
+  signOutText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
+  },
 });

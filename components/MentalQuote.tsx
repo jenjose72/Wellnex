@@ -1,11 +1,11 @@
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, Animated } from 'react-native';
+import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
-import { Animated, StyleSheet, Text } from 'react-native';
 
-// Fallback quotes if database fetch fails
-const fallbackQuotes = [
+
+// Expanded collection of mental health quotes
+const quotes = [
   {
     text: "Your mental health is a priority. Your happiness is essential. Your self-care is a necessity.",
     author: "Unknown"
@@ -25,56 +25,65 @@ const fallbackQuotes = [
   {
     text: "The strongest people are those who win battles we know nothing about.",
     author: "Unknown"
+  },
+  {
+    text: "What mental health needs is more sunlight, more candor, and more unashamed conversation.",
+    author: "Glenn Close"
+  },
+  {
+    text: "There is hope, even when your brain tells you there isn't.",
+    author: "John Green"
+  },
+  {
+    text: "You are not your illness. You have an individual story to tell. You have a name, a history, a personality. Staying yourself is part of the battle.",
+    author: "Julian Seifter"
+  },
+  {
+    text: "My dark days made me stronger. Or maybe I already was strong, and they made me prove it.",
+    author: "Emery Lord"
+  },
+  {
+    text: "Sometimes the people around you won't understand your journey. They don't need to, it's not for them.",
+    author: "Joubert Botha"
+  },
+  {
+    text: "Happiness can be found even in the darkest of times, if one only remembers to turn on the light.",
+    author: "Albus Dumbledore"
+  },
+  {
+    text: "Just because no one else can heal or do your inner work for you doesn't mean you can, should, or need to do it alone.",
+    author: "Lisa Olivera"
+  },
+  {
+    text: "Recovery is not one and done. It is a lifelong journey that takes place one day, one step at a time.",
+    author: "Unknown"
+  },
+  {
+    text: "The bravest thing I ever did was continuing my life when I wanted to die.",
+    author: "Juliette Lewis"
+  },
+  {
+    text: "Not until we are lost do we begin to understand ourselves.",
+    author: "Henry David Thoreau"
   }
 ];
 
 export default function MentalQuote() {
-  const [quote, setQuote] = useState(fallbackQuotes[0]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [quote, setQuote] = useState(quotes[0]);
   const fadeAnim = useState(new Animated.Value(0))[0];
-  const { user } = useAuth();
   
   useEffect(() => {
-    fetchQuote();
+    // Select random quote on component mount
+    const randomIndex = Math.floor(Math.random() * quotes.length);
+    setQuote(quotes[randomIndex]);
+    
+    // Fade in animation
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
   }, []);
-  
-  const fetchQuote = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Try to fetch quotes from the database
-      const { data, error } = await supabase
-        .from('mental_quotes')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      // If we have quotes in the database, use them
-      if (data && data.length > 0) {
-        const randomIndex = Math.floor(Math.random() * data.length);
-        setQuote(data[randomIndex]);
-      } else {
-        // Otherwise use fallback quotes
-        const randomIndex = Math.floor(Math.random() * fallbackQuotes.length);
-        setQuote(fallbackQuotes[randomIndex]);
-      }
-    } catch (error) {
-      console.error('Error fetching quote:', error);
-      // Use fallback quote if error
-      const randomIndex = Math.floor(Math.random() * fallbackQuotes.length);
-      setQuote(fallbackQuotes[randomIndex]);
-    } finally {
-      setIsLoading(false);
-      
-      // Fade in animation
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }).start();
-    }
-  };
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
@@ -84,6 +93,10 @@ export default function MentalQuote() {
         end={{ x: 1, y: 1 }}
         style={styles.quoteContainer}
       >
+        <View style={styles.iconContainer}>
+          <FontAwesome size={22} name="quote-left" color="#0084ff" />
+        </View>
+
         <Text style={styles.quoteText}>{quote.text}</Text>
         <Text style={styles.quoteAuthor}>— {quote.author}</Text>
       </LinearGradient>

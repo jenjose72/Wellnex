@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import styles from '@/styles/medication';
 import { MaterialIcons, Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 export default function MedicationScreen() {
   const navigation = useNavigation();
@@ -1107,7 +1108,7 @@ export default function MedicationScreen() {
         {/* Medicine Effects */}
         <TouchableOpacity
             style={[styles.card, styles.medicineCard]}
-            onPress={() => navigation.navigate('medicine/medicineSideEffects')}
+            onPress={() => router.push('medicine/medicineSideEffects')}
           >
             <LinearGradient
               colors={['#228be6', '#1971c2']}
@@ -1132,7 +1133,7 @@ export default function MedicationScreen() {
         {/* Medicine Effects */}
         <TouchableOpacity
             style={[styles.card, styles.medicineCard]}
-            onPress={() => navigation.navigate('medicine/MedicineConflicts')}
+            onPress={() => router.push('/medicine/medicineConflicts')}
           >
             <LinearGradient
               colors={['#93c9f5', '#4faeff']}
