@@ -1,20 +1,21 @@
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { MaterialIcons } from '@expo/vector-icons';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  SafeAreaView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useNavigation } from '@react-navigation/native';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Initialize Gemini API
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
@@ -102,7 +103,7 @@ const MedicineSideEffects = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <IconSymbol name="chevron.left" size={24} color="#1971c2" />
+            <MaterialIcons size={24} name="chevron-left" color="#1971c2" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Medicine Information</Text>
           <View style={{ width: 24 }} />
@@ -259,16 +260,6 @@ const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
   },
-  headerGradient: {
-    paddingBottom: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
   backButton: {
     width: 40,
     height: 40,
@@ -288,9 +279,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 80,
   },
-  searchSection: {
-    marginBottom: 24,
-  },
   searchTitle: {
     fontSize: 22,
     fontWeight: '700',
@@ -303,22 +291,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 20,
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#e7f5ff',
-    height: 50,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#1971c2',
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: '#d0ebff',
-  },
+input: {
+  width: 280, // Fixed width to accommodate the placeholder text
+  backgroundColor: '#e7f5ff',
+  height: 50,
+  borderRadius: 12,
+  paddingHorizontal: 16,
+  fontSize: 16,
+  color: '#1971c2',
+  marginRight: 12,
+  borderWidth: 1,
+  borderColor: '#d0ebff',
+},
+
+inputContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'flex-start', // Add this to align items to the start
+},
   searchButton: {
     backgroundColor: '#339af0',
     height: 50,
@@ -466,6 +456,24 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 16,
   },
+headerGradient: {
+  paddingBottom: 16,
+  paddingTop: 8, // Reduced top padding
+},
+
+header: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  paddingHorizontal: 16,
+  paddingTop: 16, // Reduced top padding
+  paddingBottom: 4, // Reduced bottom padding
+},
+
+searchSection: {
+  marginTop: 16, // Reduced top margin for better balance
+  marginBottom: 24,
+},
 });
 
 export default MedicineSideEffects;
