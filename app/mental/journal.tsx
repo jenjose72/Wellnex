@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Animated, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type JournalEntry = {
   id: string;
@@ -158,11 +158,11 @@ export default function JournalScreen() {
   
   const getMoodIcon = (mood: string) => {
     switch(mood) {
-      case 'Great': return "face.smiling.fill";
-      case 'Good': return "face.dashed.fill";
-      case 'Okay': return "face.dashed";
-      case 'Bad': return "face.frown.fill";
-      default: return "face.dashed";
+      case 'Great': return "face-smile-beam";
+      case 'Good': return "face-smile";
+      case 'Okay': return "face-meh";
+      case 'Bad': return "face-sad-tear";
+      default: return "face-meh";
     }
   };
 
@@ -186,14 +186,16 @@ export default function JournalScreen() {
         style={styles.header}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol size={24} name="chevron.left" color="#333" />
+          <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mood Journal</Text>
         <TouchableOpacity 
           style={[styles.addButton, showNewEntry && styles.addButtonActive]}
           onPress={() => toggleNewEntry(!showNewEntry)}
         >
-          <IconSymbol size={24} name={showNewEntry ? "xmark" : "plus"} color={showNewEntry ? "#fff" : "#0084ff"} />
+          <Text style={[styles.addButtonText, showNewEntry && styles.addButtonTextActive]}>
+            {showNewEntry ? "×" : "+"}
+          </Text>
         </TouchableOpacity>
       </LinearGradient>
       
@@ -640,5 +642,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  backArrow: {
+    fontSize: 28,
+    color: '#333',
+    fontWeight: '300',
+    lineHeight: 28,
+  },
+  addButtonText: {
+    fontSize: 24,
+    color: '#0084ff',
+    fontWeight: '300',
+    lineHeight: 24,
+  },
+  addButtonTextActive: {
+    color: '#fff',
   },
 });
