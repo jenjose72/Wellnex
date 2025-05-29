@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 
 type FirstAidItem = {
   id: string;
@@ -334,7 +334,7 @@ export default function FirstAidScreen() {
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <IconSymbol size={24} name="chevron.left" color="#0084ff" />
+            <Ionicons name="chevron-back" size={24} color="#0084ff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>First Aid Library</Text>
           {isOnline && (
@@ -343,14 +343,14 @@ export default function FirstAidScreen() {
               onPress={refreshData}
               disabled={isDownloading}
             >
-              <IconSymbol size={20} name="arrow.clockwise" color="#0084ff" />
+              <Ionicons name="refresh" size={20} color="#0084ff" />
             </TouchableOpacity>
           )}
         </View>
       
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
-            <IconSymbol size={18} name="magnifyingglass" color="#0084ff" />
+            <Ionicons name="search" size={18} color="#0084ff" />
             <TextInput
               style={styles.searchInput}
               placeholder="Search first aid topics"
@@ -359,7 +359,7 @@ export default function FirstAidScreen() {
             />
             {searchTerm.length > 0 && (
               <TouchableOpacity onPress={() => setSearchTerm('')}>
-                <IconSymbol size={18} name="xmark.circle.fill" color="#999" />
+                <Ionicons name="close-circle" size={18} color="#999" />
               </TouchableOpacity>
             )}
           </View>
@@ -403,7 +403,7 @@ export default function FirstAidScreen() {
           </View>
         ) : filteredData.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <IconSymbol size={50} name="cross.case.fill" color="#c5d5e6" />
+            <FontAwesome5 name="first-aid" size={50} color="#c5d5e6" />
             <Text style={styles.emptyText}>No procedures found</Text>
             <Text style={styles.emptySubtext}>
               {searchTerm 
@@ -437,9 +437,9 @@ export default function FirstAidScreen() {
                       </Text>
                     </View>
                   </View>
-                  <IconSymbol 
+                  <Ionicons 
                     size={20} 
-                    name={expandedItem === item.id ? "chevron.up" : "chevron.down"} 
+                    name={expandedItem === item.id ? "chevron-up" : "chevron-down"} 
                     color="#0084ff" 
                   />
                 </View>
@@ -466,11 +466,11 @@ export default function FirstAidScreen() {
       </ScrollView>
       
       <BlurView intensity={80} tint="light" style={styles.offlineNotice}>
-        <IconSymbol 
-          size={16} 
-          name={isDownloaded ? "checkmark.circle.fill" : "icloud.and.arrow.down.fill"} 
-          color="#0084ff" 
-        />
+        {isDownloaded ? (
+          <Ionicons name="checkmark-circle" size={16} color="#0084ff" />
+        ) : (
+          <Ionicons name="cloud-download" size={16} color="#0084ff" />
+        )}
         <Text style={styles.offlineText}>
           {isDownloading 
             ? "Downloading first aid information for offline use..."

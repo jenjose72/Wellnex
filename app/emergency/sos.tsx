@@ -1,15 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Alert, Switch, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useRouter } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
+import * as SMS from 'expo-sms';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Linking, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+type EmergencyContact = {
+  id: string;
+  name: string;
+  phone_number: string;
+  relation: string;
+};
 
 export default function SOSScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [isTracking, setIsTracking] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
+  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState({
     shareLocation: true,
     sendSMS: true,
@@ -26,8 +40,31 @@ export default function SOSScreen() {
         const currentLocation = await Location.getCurrentPositionAsync({});
         setLocation(currentLocation);
       }
+      
+      // Fetch emergency contacts
+      if (user) {
+        fetchEmergencyContacts();
+      }
     })();
-  }, []);
+  }, [user]);
+
+  // Fetch emergency contacts from the database
+  const fetchEmergencyContacts = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('emergency_contacts')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      setEmergencyContacts(data || []);
+    } catch (error) {
+      console.error('Error fetching emergency contacts:', error);
+    }
+  };
 
   const handleSOS = () => {
     Alert.alert(
@@ -40,17 +77,129 @@ export default function SOSScreen() {
     );
   };
 
-  const sendSOS = () => {
-    Alert.alert(
-      'SOS Activated',
-      'Emergency services have been notified and your emergency contacts have been alerted with your location.',
-      [{ text: 'OK' }]
-    );
+  const sendSOS = async () => {
+    setIsLoading(true);
     
-    // In a real app, you would:
-    // 1. Call emergency services
-    // 2. Send SMS with location to emergency contacts
-    // 3. Sound an alarm if enabled
+    try {
+      // 1. Check if SMS is available
+      const isAvailable = await SMS.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert(
+          'SMS Not Available',
+          'SMS messaging is not available on this device.'
+        );
+        return;
+      }
+      
+      // 2. Get current location if permission is granted and setting is enabled
+      let locationText = "Location not available";
+      if (locationPermission && settings.shareLocation && location) {
+        const { latitude, longitude } = location.coords;
+        locationText = `Location: https://maps.google.com/?q=${latitude},${longitude}`;
+        
+        // Try to get address if possible
+        try {
+          const addresses = await Location.reverseGeocodeAsync({
+            latitude,
+            longitude
+          });
+          
+          if (addresses && addresses.length > 0) {
+            const address = addresses[0];
+            const addressComponents = [
+              address.name,
+              address.street,
+              address.city,
+              address.region,
+              address.postalCode,
+              address.country
+            ].filter(Boolean);
+            
+            if (addressComponents.length > 0) {
+              locationText += `\nAddress: ${addressComponents.join(', ')}`;
+            }
+          }
+        } catch (error) {
+          console.error('Error getting address:', error);
+        }
+      }
+      
+      // 3. Compose emergency message
+      const messageBody = `EMERGENCY SOS ALERT: I need immediate help! ${locationText}`;
+      
+      // 4. Send SMS if enabled and we have contacts
+      if (settings.sendSMS && emergencyContacts.length > 0) {
+        // Get array of phone numbers
+        const phoneNumbers = emergencyContacts.map(contact => contact.phone_number);
+        
+        // Send the SMS
+        const { result } = await SMS.sendSMSAsync(
+          phoneNumbers,
+          messageBody
+        );
+        
+        if (result === 'sent') {
+          console.log('SMS sent successfully');
+        } else {
+          console.log('SMS sending canceled or failed', result);
+        }
+      } else if (settings.sendSMS && emergencyContacts.length === 0) {
+        Alert.alert(
+          'No Emergency Contacts',
+          'You have no emergency contacts set up. Would you like to add some now?',
+          [
+            { text: 'No', style: 'cancel' },
+            { text: 'Add Contacts', onPress: () => router.push('/emergency/contacts') }
+          ]
+        );
+        return;
+      }
+      
+      // 5. Call emergency services if enabled
+      if (settings.callEmergency) {
+        // This would typically open the phone dialer with emergency number
+        // For safety reasons, we'll just show this in an alert instead of auto-dialing
+        Alert.alert(
+          'Calling Emergency Services',
+          'Would you like to call emergency services now?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Call Emergency',
+              onPress: () => {
+                Linking.openURL('tel:108'); // Use your country's emergency number
+              }
+            }
+          ]
+        );
+      }
+      
+      // 6. Play alarm sound if enabled
+      if (settings.soundAlarm) {
+        // This would play an alarm sound
+        // Implementation would depend on your audio library
+        // For example, with expo-av:
+        // const soundObject = new Audio.Sound();
+        // await soundObject.loadAsync(require('@/assets/sounds/alarm.mp3'));
+        // await soundObject.playAsync();
+      }
+      
+      // Show success alert
+      Alert.alert(
+        'SOS Activated',
+        `Emergency alert has been sent to ${emergencyContacts.length} contact${emergencyContacts.length !== 1 ? 's' : ''}.`,
+        [{ text: 'OK' }]
+      );
+      
+    } catch (error) {
+      console.error('Error sending SOS:', error);
+      Alert.alert(
+        'SOS Error',
+        'There was a problem sending your emergency alert. Please try again or call emergency services directly.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleSetting = (setting: keyof typeof settings) => {
@@ -71,8 +220,9 @@ export default function SOSScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol size={24} name="chevron.left" color="#333" />
+          <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Emergency SOS</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -96,15 +246,30 @@ export default function SOSScreen() {
           style={styles.sosButton}
           onPress={handleSOS}
           activeOpacity={0.8}
+          disabled={isLoading}
         >
           <View style={styles.sosInnerCircle}>
-            <Text style={styles.sosText}>SOS</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#ff3b30" size="large" />
+            ) : (
+              <Text style={styles.sosText}>SOS</Text>
+            )}
           </View>
         </TouchableOpacity>
         
         <Text style={styles.sosHelpText}>
           Press the button in case of emergency
         </Text>
+        
+        {emergencyContacts.length === 0 && (
+          <TouchableOpacity 
+            style={styles.addContactsButton}
+            onPress={() => router.push('/emergency/contacts')}
+          >
+            <Text style={styles.addContactsText}>Add Emergency Contacts</Text>
+            <IconSymbol size={16} name="chevron.right" color="#0084ff" />
+          </TouchableOpacity>
+        )}
       </View>
       
       <View style={styles.settingsContainer}>
@@ -303,4 +468,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#0084ff',
   },
+  addContactsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    padding: 8,
+    backgroundColor: '#e6f2ff',
+    borderRadius: 20,
+  },
+  addContactsText: {
+    color: '#0084ff',
+    fontWeight: '600',
+    marginRight: 4,
+  }
 });
