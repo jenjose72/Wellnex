@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -11,8 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -102,7 +102,7 @@ const MedicineSideEffects = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <IconSymbol name="chevron.left" size={24} color="#1971c2" />
+            <Ionicons name="chevron-back" size={24} color="#1971c2" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Medicine Information</Text>
           <View style={{ width: 24 }} />
@@ -146,7 +146,7 @@ const MedicineSideEffects = () => {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <>
-                    <IconSymbol name="magnifyingglass" size={18} color="#fff" />
+                    <Ionicons name="search" size={18} color="#fff" />
                     <Text style={styles.searchButtonText}>Search</Text>
                   </>
                 )}
@@ -156,7 +156,7 @@ const MedicineSideEffects = () => {
 
           {error ? (
             <View style={styles.errorContainer}>
-              <IconSymbol name="exclamationmark.triangle" size={32} color="#ff922b" />
+              <Ionicons name="warning" size={32} color="#ff922b" />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
@@ -169,7 +169,7 @@ const MedicineSideEffects = () => {
                   <Text style={styles.medicineCategory}>{medicineInfo.category}</Text>
                 </View>
                 <View style={styles.pillIconContainer}>
-                  <IconSymbol name="pills.fill" size={24} color="#fff" />
+                  <MaterialCommunityIcons name="pill" size={24} color="#fff" />
                 </View>
               </View>
 
@@ -239,7 +239,7 @@ const MedicineSideEffects = () => {
 
           {!medicineInfo && !loading && !error && (
             <View style={styles.placeholderContainer}>
-              <IconSymbol name="magnifyingglass" size={64} color="#74c0fc" />
+              <Ionicons name="search" size={64} color="#74c0fc" />
               <Text style={styles.placeholderText}>
                 Search for a medication to see information about its uses and side effects
               </Text>
