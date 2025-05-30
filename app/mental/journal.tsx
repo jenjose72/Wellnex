@@ -1,12 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Animated, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 // Replace IconSymbol with Expo Vector Icons
-import { Ionicons, FontAwesome, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { FontAwesome, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 
 type JournalEntry = {
   id: string;
@@ -157,16 +157,15 @@ export default function JournalScreen() {
     }
   };
   
-  // Update getMoodIcon function to use Expo Vector Icons names
-  const getMoodIcon = (mood: string) => {
-    switch(mood) {
-      case 'Great': return "happy";
-      case 'Good': return "happy-outline";
-      case 'Okay': return "sad-outline";
-      case 'Bad': return "sad";
-      default: return "happy-outline";
-    }
-  };
+  const getMoodIcon = (mood) => {
+  switch(mood) {
+    case 'Great': return "emoticon-excited";
+    case 'Good': return "emoticon-happy";
+    case 'Okay': return "emoticon-neutral";
+    case 'Bad': return "emoticon-sad";
+    default: return "emoticon-neutral";
+  }
+};
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
