@@ -1,26 +1,26 @@
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  TextInput,
-  Alert,
-  Platform,
-} from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { supabase } from '@/lib/supabase';
+//import styles from '@/styles/medication';
+import { FontAwesome5, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format, parse, addDays, addWeeks, addMonths, isBefore, parseISO } from 'date-fns';
-import * as Notifications from 'expo-notifications';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import styles from '@/styles/medication';
-import { MaterialIcons, Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { addDays, addMonths, format, isBefore, parse, parseISO } from 'date-fns';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  Dimensions,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function MedicationScreen() {
   const navigation = useNavigation();
@@ -595,7 +595,7 @@ export default function MedicationScreen() {
       >
         <View style={styles.headerContainer}>
           <View style={styles.headerTitleWrapper}>
-            <MaterialIcons name="health-and-safety" size={32} color="#1971c2" style={styles.headerIcon} />
+            
             <View>
               <Text style={styles.headerTitle}>Health Management</Text>
               <Text style={styles.headerSubtitle}>Track medications and medical history</Text>
@@ -1160,3 +1160,614 @@ export default function MedicationScreen() {
   );
 }
 
+const { width, height } = Dimensions.get('window');
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  
+  headerGradient: {
+    paddingBottom: 20,
+    paddingTop: 20, // Reduced top padding for smaller gap
+    backgroundColor: '#f0f2f5', // Light gray background to match image
+  },
+  
+  headerContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  
+  headerTitleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  
+  headerIcon: {
+    marginRight: 12,
+  },
+  
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1971c2', // Blue text for white background
+    marginBottom: 2,
+  },
+  
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#6c757d', // Gray text for white background
+    fontWeight: '400',
+  },
+  
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  
+  sectionContainer: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1971c2', // Blue color to match theme
+    marginLeft: 8,
+  },
+  
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1971c2',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    shadowColor: '#1971c2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#6c757d',
+    textAlign: 'center',
+  },
+  
+  medicationCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12, // Slightly less rounded to match image
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    minHeight: 100, // Set minimum height for consistency
+    flexDirection: 'row', // Horizontal layout like in image
+    alignItems: 'center',
+  },
+  
+  medicationTimeContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+    minWidth: 80, // Fixed width for time section
+  },
+  
+  medicationTime: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: '#e7f5ff',
+    borderRadius: 6,
+  },
+  
+  medicationTimeOverdue: {
+    backgroundColor: '#ffebee',
+  },
+  
+  timeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1971c2',
+    marginLeft: 4,
+  },
+  
+  timeTextOverdue: {
+    color: '#d32f2f',
+  },
+  
+  dateText: {
+    fontSize: 11,
+    color: '#6c757d',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  
+  medicationDetails: {
+    flex: 1,
+    marginRight: 12,
+  },
+  
+  medicationName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    marginBottom: 4,
+  },
+  
+  medicationDosage: {
+    fontSize: 14,
+    color: '#495057',
+    marginBottom: 6,
+    fontWeight: '400',
+  },
+  
+  repeatPatternRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  
+  repeatPatternText: {
+    fontSize: 12,
+    color: '#1971c2',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  
+  notesRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 2,
+  },
+  
+  notesText: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginLeft: 4,
+    flex: 1,
+    fontStyle: 'italic',
+  },
+  
+  actionButtons: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 8,
+  },
+  
+  actionButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  checkButton: {
+    backgroundColor: '#51cf66',
+    borderColor: '#51cf66',
+  },
+  
+  deleteButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  historyCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  
+  historyTypeContainer: {
+    flex: 1,
+  },
+  
+  historyTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+  },
+  
+  historyTypeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  
+  historyDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  historyDate: {
+    fontSize: 12,
+    color: '#495057',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#212529',
+    marginBottom: 8,
+  },
+  
+  descriptionContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  
+  descriptionIcon: {
+    marginRight: 6,
+    marginTop: 2,
+  },
+  
+  historyDescription: {
+    fontSize: 14,
+    color: '#495057',
+    lineHeight: 20,
+    flex: 1,
+  },
+  
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    width: width * 0.9,
+    maxHeight: height * 0.85,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  modalIcon: {
+    marginRight: 8,
+  },
+  
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#212529',
+  },
+  
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    marginBottom: 8,
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  
+  inputIcon: {
+    marginRight: 10,
+  },
+  
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#212529',
+    paddingVertical: 12,
+    fontWeight: '500',
+  },
+  
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  
+  repeatPatternContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+    gap: 8,
+  },
+  
+  repeatPatternOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    minWidth: 80,
+    justifyContent: 'center',
+  },
+  
+  repeatPatternSelected: {
+    backgroundColor: '#1971c2',
+    borderColor: '#1971c2',
+  },
+  
+  repeatPatternTextSelected: {
+    color: '#ffffff',
+  },
+  
+  dateTimeButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  
+  dateTimeWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  dateTimeText: {
+    fontSize: 16,
+    color: '#212529',
+    marginLeft: 10,
+    fontWeight: '500',
+  },
+  
+  typeSelector: {
+    maxHeight: 120,
+    marginBottom: 16,
+  },
+  
+  typeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingRight: 20,
+  },
+  
+  typeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    marginBottom: 8,
+  },
+  
+  typeOptionSelected: {
+    backgroundColor: '#1971c2',
+    borderColor: '#1971c2',
+  },
+  
+  typeOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#495057',
+    marginLeft: 4,
+  },
+  
+  typeOptionTextSelected: {
+    color: '#ffffff',
+  },
+  
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  
+  cancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    flex: 1,
+    marginRight: 8,
+    justifyContent: 'center',
+  },
+  
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#495057',
+  },
+  
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#1971c2',
+    flex: 1,
+    marginLeft: 8,
+    justifyContent: 'center',
+    shadowColor: '#1971c2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  
+  // Card styles for medicine effects sections
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  
+  medicineCard: {
+    overflow: 'hidden',
+  },
+  
+  medicineGradient: {
+    padding: 20,
+    borderRadius: 16,
+  },
+  
+  medicineContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  
+  medicineTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  
+  medicineDescription: {
+    fontSize: 14,
+    color: '#ffffff',
+    opacity: 0.9,
+    lineHeight: 20,
+    maxWidth: '80%',
+  },
+  
+  medicineIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
