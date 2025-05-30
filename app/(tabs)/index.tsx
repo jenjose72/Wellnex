@@ -1,4 +1,3 @@
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Entypo, FontAwesome, FontAwesome5, Foundation, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
@@ -6,7 +5,7 @@ import { addDays, addMonths, isBefore, parseISO } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type MedicationReminder = {
@@ -131,6 +130,18 @@ export default function HomeScreen() {
     } finally {
       setIsLoadingContacts(false);
     }
+  };
+
+  // Call functionality
+  const handleCall = (phoneNumber: string, contactName: string) => {
+    Alert.alert(
+      'Make Phone Call',
+      `Call ${contactName} at ${phoneNumber}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Call', onPress: () => Linking.openURL(`tel:${phoneNumber}`) }
+      ]
+    );
   };
 
   const handleSOS = () => {
@@ -603,7 +614,10 @@ export default function HomeScreen() {
                     <Text style={styles.contactPhone}>{contact.phone_number}</Text>
                     <Text style={styles.contactRelation}>{contact.relation}</Text>
                   </View>
-                  <TouchableOpacity style={styles.contactCallButton}>
+                  <TouchableOpacity 
+                    style={styles.contactCallButton}
+                    onPress={() => handleCall(contact.phone_number, contact.name)}
+                  >
                     <MaterialIcons name="call" size={20} color="#fff" />
                   </TouchableOpacity>
                 </View>
