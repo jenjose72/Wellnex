@@ -1,6 +1,54 @@
-# Welcome to your Expo app 👋
+# Wellnex: Comprehensive Healthcare Platform 👋
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+This is a comprehensive healthcare management platform built with [Expo](https://expo.dev) that integrates medical, emergency, fitness, and mental wellness features in a single application.
+
+## Features
+
+### 🏥 Medical Management System
+- **Smart Medication Tracking**
+  - Customizable medication schedules and reminders
+  - Dose verification and adherence monitoring
+  - Visual medication timeline with upcoming doses
+  - Medication details storage and history
+
+- **Health Records Center**
+  - Medical history documentation and storage
+  - Categorized health events (diagnoses, surgeries, allergies)
+  - Medication conflict detection and interaction warnings
+  - Secure sharing with healthcare providers
+
+### 🚨 Emergency Response Toolkit
+- **Instant Access System**
+  - One-tap SOS alert with location sharing
+  - Emergency contact quick-dial feature
+  - Critical medical information display
+
+- **Critical Resources**
+  - Offline first aid library
+  - Nearby healthcare facility locator
+  - Emergency procedure guides
+
+### 💪 Physical Wellbeing Center
+- **Body Metrics**
+  - BMI calculator with recommendations
+  - Progress tracking and visualization
+  - Custom fitness goal setting
+
+- **Fitness Companion**
+  - AI fitness coach with personalized recommendations
+  - Exercise library with instructions
+  - Customized routines based on health conditions
+
+### 🧠 Mental Wellness Suite
+- **Emotional Health Tracker**
+  - Daily mood logging and visualization
+  - Weekly emotional pattern analysis
+  - Medication-mood correlation tracking
+
+- **Support & Resources**
+  - Guided journaling with therapeutic prompts
+  - 24/7 mental wellness AI assistant
+  - Stress management and mindfulness resources
 
 ## Get started
 
